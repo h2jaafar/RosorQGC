@@ -20,6 +20,13 @@ Item {
     property color  _mainStatusBGColor: qgcPal.brandingPurple
     property real   _leftRightMargin:   ScreenTools.defaultFontPixelWidth * 0.75
     property var    _guidedController:  globals.guidedControllerFlyView
+    property bool   parameterFavoritesVisible: false
+
+    signal toggleParameterFavorites()
+    signal showMissionQuickVerify()
+    signal showObstacleProfile()
+    property bool   _fieldModeEnabled:  QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
+    property bool   _modernHudEnabled:  QGroundControl.settingsManager.appSettings.modernHudEnabled.value
 
     function dropMainStatusIndicatorTool() {
         mainStatusIndicator.dropMainStatusIndicator();
@@ -68,7 +75,11 @@ Item {
                 RowLayout {
                     id:         leftPanelLayout
                     height:     parent.height
-                    spacing:    ScreenTools.defaultFontPixelWidth * 2
+                    spacing:    ScreenTools.defaultFontPixelWidth * 0.75
+
+                    // Compact padding for all the toolbar action buttons so they
+                    // fit on small/high-DPI screens (e.g. Herelink) without overflow.
+                    property real _toolBtnPad: ScreenTools.defaultFontPixelWidth * 0.6
 
                     RowLayout {
                         id:         mainStatusLayout
@@ -78,8 +89,9 @@ Item {
                         QGCToolBarButton {
                             id:                 qgcButton
                             Layout.fillHeight:  true
-                            icon.source:        "/res/QGCLogoFull.svg"
+                            icon.source:        "/res/RosorLogo.png"
                             logo:               true
+                            visible:            !_fieldModeEnabled
                             onClicked:          mainWindow.showToolSelectDialog()
                         }
 
@@ -92,13 +104,45 @@ Item {
                     QGCButton {
                         id:         disconnectButton
                         text:       qsTr("Disconnect")
+                        leftPadding:  leftPanelLayout._toolBtnPad
+                        rightPadding: leftPanelLayout._toolBtnPad
                         onClicked:  _activeVehicle.closeVehicle()
-                        visible:    _activeVehicle && _communicationLost
+                        visible:    !_fieldModeEnabled && _activeVehicle && _communicationLost
                     }
 
                     FlightModeIndicator {
                         Layout.fillHeight:  true
                         visible:            _activeVehicle
+                    }
+
+                    QGCButton {
+                        id:                 fieldModeToggle
+                        text:               _fieldModeEnabled ? qsTr("Field On") : qsTr("Field")
+                        leftPadding:        leftPanelLayout._toolBtnPad
+                        rightPadding:       leftPanelLayout._toolBtnPad
+                        checkable:          true
+                        checked:            _fieldModeEnabled
+                        primary:            _fieldModeEnabled
+                        onClicked:          QGroundControl.settingsManager.appSettings.fieldModeEnabled.value = !_fieldModeEnabled
+                    }
+
+                    QGCButton {
+                        id:                 parameterFavoritesToggle
+                        text:               qsTr("Favs")
+                        leftPadding:        leftPanelLayout._toolBtnPad
+                        rightPadding:       leftPanelLayout._toolBtnPad
+                        checkable:          true
+                        checked:            parameterFavoritesVisible
+                        primary:            parameterFavoritesVisible
+                        onClicked:          control.toggleParameterFavorites()
+                    }
+
+                    QGCButton {
+                        id:         missionQuickVerifyButton
+                        text:       qsTr("Verify")
+                        leftPadding:  leftPanelLayout._toolBtnPad
+                        rightPadding: leftPanelLayout._toolBtnPad
+                        onClicked:  control.showMissionQuickVerify()
                     }
                 }
             }
@@ -121,6 +165,7 @@ Item {
                     guidedValueSlider:          control.guidedValueSlider
                     utmspSliderTrigger:         control.utmspSliderTrigger
                     messageDisplay:             guidedActionMessageDisplay
+                    visible:                    !_fieldModeEnabled
                 }
             }
 
@@ -128,6 +173,7 @@ Item {
                 id:     rightPanel
                 width:  flyViewIndicators.width
                 height: parent.height
+                visible: !_fieldModeEnabled
 
                 Rectangle {
                     anchors.fill:   parent

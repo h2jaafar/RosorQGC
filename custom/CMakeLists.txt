@@ -1,0 +1,19 @@
+message(STATUS "QGC: Adding Custom Plugin (RosorQGC)")
+
+set(CUSTOM_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/CustomPlugin.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/CustomPlugin.h
+    CACHE INTERNAL "" FORCE
+)
+
+set(CUSTOM_INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    CACHE INTERNAL "" FORCE
+)
+
+set(CUSTOM_DEFINITIONS
+    QGC_CUSTOM_BUILD
+    CUSTOMHEADER="CustomPlugin.h"
+    CUSTOMCLASS=CustomPlugin
+    CACHE INTERNAL "" FORCE
+)

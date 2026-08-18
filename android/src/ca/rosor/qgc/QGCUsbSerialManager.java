@@ -1,4 +1,4 @@
-package org.mavlink.qgroundcontrol;
+package ca.rosor.qgc;
 
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
@@ -17,7 +17,7 @@ import java.util.concurrent.*;
 
 public class QGCUsbSerialManager {
     private static final String TAG = QGCUsbSerialManager.class.getSimpleName();
-    private static final String ACTION_USB_PERMISSION = "org.mavlink.qgroundcontrol.action.USB_PERMISSION";
+    private static final String ACTION_USB_PERMISSION = "ca.rosor.qgc.action.USB_PERMISSION";
     private static final int BAD_DEVICE_ID = 0;
     private static final int READ_BUF_SIZE = 2048;
 
@@ -626,11 +626,32 @@ public class QGCUsbSerialManager {
         }
 
         SerialInputOutputManager.State ioState = resources.ioManager.getState();
-        if (ioState == SerialInputOutputManager.State.STOPPED || ioState == SerialInputOutputManager.State.STOPPING) {
+        if (ioState == SerialInputOutputManager.State.STOPPED) {
             return true;
         }
 
-        resources.ioManager.stop();
+        if (ioState != SerialInputOutputManager.State.STOPPING) {
+            resources.ioManager.stop();
+        }
+
+        // Block until the read thread has really stopped so no more native
+        // callbacks can fire with our classPtr. Without this the JNI thread
+        // can still be mid-stepRead when C++ destroys the QSerialPortPrivate,
+        // producing a QRingBuffer use-after-free (fault addr 0x20).
+        final long startMs = System.currentTimeMillis();
+        while (resources.ioManager.getState() != SerialInputOutputManager.State.STOPPED) {
+            if (System.currentTimeMillis() - startMs > 750) {
+                QGCLogger.w(TAG, "stopIoManager timed out waiting for STOPPED, state=" + resources.ioManager.getState());
+                break;
+            }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
         QGCLogger.d(TAG, "Serial I/O Manager stopped for device ID " + deviceId);
         return true;
     }

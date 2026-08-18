@@ -10,7 +10,8 @@
       "toolchainFile": "$penv{QT_ROOT_DIR}/lib/cmake/Qt6/qt.toolchain.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "ANDROID_ABI": "$penv{ANDROID_ABI}"
+        "ANDROID_ABI": "$penv{ANDROID_ABI}",
+        "QT_HOST_PATH": "$penv{QT_HOST_PATH}"
       }
     },
     {

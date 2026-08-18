@@ -1,4 +1,4 @@
-package org.mavlink.qgroundcontrol;
+package ca.rosor.qgc;
 
 import java.io.File;
 import java.util.List;

@@ -46,9 +46,22 @@ Item {
     property real   _rightPanelWidth:       ScreenTools.defaultFontPixelWidth * 30
     property var    _mapControl:            mapControl
     property real   _widgetMargin:          ScreenTools.defaultFontPixelWidth * 0.75
+    property bool   _fieldModeEnabled:      QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
+    property var    _appSettings:           QGroundControl.settingsManager.appSettings
+    property bool   _showParameterFavoritesPanel: false
 
     property real   _fullItemZorder:    0
     property real   _pipItemZorder:     QGroundControl.zOrderWidgets
+
+    function _applyModernHudFieldDefault() {
+        if (_fieldModeEnabled && !_appSettings.modernHudFieldDefaultApplied.value) {
+            _appSettings.modernHudEnabled.value = true
+            _appSettings.modernHudFieldDefaultApplied.value = true
+        }
+    }
+
+    Component.onCompleted: _applyModernHudFieldDefault()
+    on_FieldModeEnabledChanged: _applyModernHudFieldDefault()
 
     function _calcCenterViewPort() {
         var newToolInset = Qt.rect(0, 0, width, height)
@@ -112,6 +125,7 @@ Item {
             anchors.right:          guidedValueSlider.visible ? guidedValueSlider.left : parent.right
             anchors.margins:        _widgetMargin
             anchors.topMargin:      toolbar.height + _widgetMargin
+            bottomRowReservedHeight: (criticalStatusBar ? criticalStatusBar.height : 0) + _widgetMargin
             z:                      _fullItemZorder + 2 // we need to add one extra layer for map 3d viewer (normally was 1)
             parentToolInsets:       _toolInsets
             mapControl:             _mapControl
@@ -163,14 +177,110 @@ Item {
         }
     }
 
+    ModernHud {
+        id:                 modernHud
+        anchors.top:        toolbar.bottom
+        anchors.bottom:     criticalStatusBar.top
+        anchors.left:       parent.left
+        anchors.right:      parent.right
+        anchors.margins:    ScreenTools.defaultFontPixelHeight * 0.8
+        z:                  QGroundControl.zOrderWidgets
+        vehicle:            _activeVehicle
+        visible:            _appSettings.modernHudEnabled.value && !QGroundControl.videoManager.fullScreen
+    }
+
     UTMSPActivationStatusBar {
         activationStartTimestamp:   UTMSPStateStorage.startTimeStamp
         activationApproval:         UTMSPStateStorage.showActivationTab && QGroundControl.utmspManager.utmspVehicle.vehicleActivation
         flightID:                   UTMSPStateStorage.flightID
         anchors.fill:               parent
+        visible:                    !_fieldModeEnabled
 
         function onActivationTriggered(value) {
             _root.utmspSendActTrigger = value
+        }
+    }
+
+    CriticalStatusBar {
+        id:                 criticalStatusBar
+        anchors.left:       parent.left
+        anchors.right:      parent.right
+        anchors.bottom:     parent.bottom
+        z:                  QGroundControl.zOrderTopMost
+        vehicle:            _activeVehicle
+        fieldModeEnabled:   _fieldModeEnabled
+    }
+
+    // Inline mini Obstacle Profile — always visible above the critical bar,
+    // semi-transparent. Tap to open the full popup with zoom/UI controls.
+    // Placed bottom-LEFT to avoid the compass widget on the right.
+    Rectangle {
+        id:                 obstacleProfileMini
+        anchors.left:       parent.left
+        anchors.bottom:     criticalStatusBar.top
+        anchors.leftMargin: ScreenTools.defaultFontPixelWidth
+        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.4
+        width:              ScreenTools.defaultFontPixelWidth * 26
+        height:             ScreenTools.defaultFontPixelHeight * 7
+        z:                  QGroundControl.zOrderTopMost
+        radius:             ScreenTools.defaultBorderRadius
+        color:              Qt.rgba(0, 0, 0, miniMouse.pressed ? 0.70 : 0.55)
+        border.color:       miniMouse.pressed ? Qt.rgba(1, 0.6, 0, 0.7) : Qt.rgba(1, 1, 1, 0.30)
+        border.width:       miniMouse.pressed ? 2 : 1
+        opacity:            0.92
+
+        readonly property var _miniNamed: (_activeVehicle && _activeVehicle.namedValueFloats)
+                                            ? _activeVehicle.namedValueFloats.values
+                                            : ({})
+        readonly property real _miniClosest: {
+            var e = obstacleProfileMini._miniNamed && obstacleProfileMini._miniNamed["O_C1M"]
+            if (e && typeof e === "object" && e.value !== undefined && e.value > 0.01) {
+                return e.value
+            }
+            return NaN
+        }
+
+        ObstacleProfileView {
+            anchors.fill: parent
+            anchors.margins: ScreenTools.defaultFontPixelWidth * 0.3
+            vehicle: _activeVehicle
+            maxRangeM: obstacleProfilePopup.maxRangeM
+            viewMode: obstacleProfilePopup.viewMode
+            showRangeLabels: false
+            showObstacleLabels: false
+            showModeLabel: false
+            labelFontPointSize: ScreenTools.smallFontPointSize
+        }
+
+        // Big closest-distance readout (top-right of the mini)
+        Column {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: ScreenTools.defaultFontPixelHeight * 0.25
+            anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.5
+            spacing: 0
+
+            QGCLabel {
+                anchors.right: parent.right
+                text: qsTr("CLOSEST")
+                font.pointSize: ScreenTools.smallFontPointSize
+                color: "#cccccc"
+            }
+            QGCLabel {
+                anchors.right: parent.right
+                text: isNaN(obstacleProfileMini._miniClosest)
+                        ? "—"
+                        : (obstacleProfileMini._miniClosest.toFixed(1) + " m")
+                font.pointSize: ScreenTools.largeFontPointSize
+                font.bold: true
+                color: "white"
+            }
+        }
+
+        MouseArea {
+            id: miniMouse
+            anchors.fill: parent
+            onClicked: openObstacleProfile()
         }
     }
 
@@ -179,5 +289,62 @@ Item {
         guidedValueSlider:  _guidedValueSlider
         utmspSliderTrigger: utmspSendActTrigger
         visible:            !QGroundControl.videoManager.fullScreen
+        parameterFavoritesVisible: _showParameterFavoritesPanel
+        onToggleParameterFavorites: _showParameterFavoritesPanel = !_showParameterFavoritesPanel
+        onShowMissionQuickVerify: openMissionQuickVerify()
+        onShowObstacleProfile: openObstacleProfile()
+    }
+
+    function openObstacleProfile() {
+        obstacleProfilePopup.vehicle = _activeVehicle
+        obstacleProfilePopup.open()
+    }
+
+    ObstacleProfilePopup {
+        id:     obstacleProfilePopup
+        parent: _root
+        x:      (_root.width - width) / 2
+        y:      (_root.height - height) / 2
+    }
+
+    function openMissionQuickVerify() {
+        if (!missionVerifyLoader.active) {
+            missionVerifyLoader.active = true
+            return
+        }
+        if (missionVerifyLoader.item) {
+            missionVerifyLoader.item.open()
+        } else {
+            missionVerifyLoader.active = false
+            missionVerifyLoader.active = true
+        }
+    }
+
+    Loader {
+        id:         missionVerifyLoader
+        active:     false
+        source:     "qrc:/qml/QGroundControl/FlyView/MissionQuickVerifyDialog.qml"
+
+        onLoaded: {
+            item.missionController = _missionController
+            item.closed.connect(function() {
+                missionVerifyLoader.active = false
+            })
+            item.open()
+        }
+    }
+
+    ParameterFavoritesPanel {
+        id:                     parameterFavoritesPanel
+        anchors.top:            parent.top
+        anchors.right:          parent.right
+        anchors.bottom:         criticalStatusBar.top
+        anchors.topMargin:      toolbar.height
+        anchors.margins:        ScreenTools.defaultFontPixelWidth
+        width:                  preferredWidth
+        visible:                _showParameterFavoritesPanel && !QGroundControl.videoManager.fullScreen
+        vehicle:                _activeVehicle
+        panelVisible:           visible
+        z:                      QGroundControl.zOrderTopMost
     }
 }

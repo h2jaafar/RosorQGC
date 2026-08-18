@@ -16,8 +16,10 @@ import QGroundControl.Toolbar
 ApplicationWindow {
     id:         mainWindow
     visible:    true
-    // The special casing for android prevents white bars from showing up on the edges of the screen with newer android versions
-    flags:      Qt.Window | (ScreenTools.isAndroid ? Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint : 0)
+    // On Android we ask Qt to draw into the whole screen area (edge-to-edge)
+    // otherwise Android 12+ reserves 30–70 px worth of system-bar area on the
+    // right and bottom, leaving visible white bars.
+    flags:      Qt.Window | (ScreenTools.isAndroid ? (Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint) : 0)
 
     property bool   _utmspSendActTrigger
 
@@ -79,6 +81,9 @@ ApplicationWindow {
         property bool               commingFromRIDIndicator:        false
     }
 
+    property bool _fieldModeEnabled:     QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
+    property bool _fieldModeAllowPlan:   QGroundControl.settingsManager.appSettings.fieldModeAllowPlan.value
+
     /// Default color palette used throughout the UI
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
@@ -105,6 +110,9 @@ ApplicationWindow {
     }
 
     function showPlanView() {
+        if (_fieldModeEnabled && !_fieldModeAllowPlan) {
+            return
+        }
         flyView.visible = false
         planView.visible = true
         toolDrawer.visible = false
@@ -117,6 +125,9 @@ ApplicationWindow {
     }
 
     function showTool(toolTitle, toolSource, toolIcon) {
+        if (_fieldModeEnabled) {
+            return
+        }
         toolDrawer.backIcon     = flyView.visible ? "/qmlimages/PaperPlane.svg" : "/qmlimages/Plan.svg"
         toolDrawer.toolTitle    = toolTitle
         toolDrawer.toolSource   = toolSource
@@ -125,10 +136,16 @@ ApplicationWindow {
     }
 
     function showAnalyzeTool() {
+        if (_fieldModeEnabled) {
+            return
+        }
         showTool(qsTr("Analyze Tools"), "qrc:/qml/QGroundControl/AnalyzeView/AnalyzeView.qml", "/qmlimages/Analyze.svg")
     }
 
     function showVehicleConfig() {
+        if (_fieldModeEnabled) {
+            return
+        }
         showTool(qsTr("Vehicle Configuration"), "qrc:/qml/QGroundControl/VehicleSetup/SetupView.qml", "/qmlimages/Gears.svg")
     }
 
@@ -146,7 +163,10 @@ ApplicationWindow {
     }
 
     function showSettingsTool(settingsPage = "") {
-        showTool(qsTr("Application Settings"), "qrc:/qml/QGroundControl/Controls/AppSettings.qml", "/res/QGCLogoWhite")
+        if (_fieldModeEnabled) {
+            return
+        }
+        showTool(qsTr("Application Settings"), "qrc:/qml/QGroundControl/Controls/AppSettings.qml", "/res/RosorLogo.png")
         if (settingsPage !== "") {
             toolDrawerLoader.item.showSettingsPage(settingsPage)
         }
@@ -266,7 +286,20 @@ ApplicationWindow {
     }
 
     footer: LogReplayStatusBar {
-        visible: QGroundControl.settingsManager.flyViewSettings.showLogReplayStatusBar.rawValue
+        visible: !_fieldModeEnabled && QGroundControl.settingsManager.flyViewSettings.showLogReplayStatusBar.rawValue
+    }
+
+    on_FieldModeEnabledChanged: {
+        if (_fieldModeEnabled && !_fieldModeAllowPlan) {
+            showFlyView()
+        }
+        toolDrawer.visible = false
+    }
+
+    on_FieldModeAllowPlanChanged: {
+        if (_fieldModeEnabled && !_fieldModeAllowPlan) {
+            showFlyView()
+        }
     }
 
     MessageDialog {
@@ -301,6 +334,9 @@ ApplicationWindow {
     }
 
     function showToolSelectDialog() {
+        if (_fieldModeEnabled) {
+            return
+        }
         if (mainWindow.allowViewSwitch()) {
             mainWindow.showIndicatorDrawer(toolSelectComponent, null)
         }
@@ -352,9 +388,20 @@ ApplicationWindow {
                 spacing:            ScreenTools.defaultFontPixelWidth
 
                 QGCToolBarButton {
+                    id: backButton
+                    height: parent.height
+                    Layout.preferredWidth: height
+                    icon.source: "/res/ArrowRight.svg"
+                    rotation: 180
+                    onClicked: {
+                        toolDrawer.visible = false
+                    }
+                }
+
+                QGCToolBarButton {
                     id: qgcButton
                     height: parent.height
-                    icon.source: "/res/QGCLogoFull.svg"
+                    icon.source: "/res/RosorLogo.png"
                     logo: true
                     onClicked: mainWindow.showToolSelectDialog()
                 }
@@ -400,7 +447,11 @@ ApplicationWindow {
 
     Popup {
         id:                 criticalVehicleMessagePopup
-        y:                  ScreenTools.toolbarHeight + ScreenTools.defaultFontPixelHeight
+        // Placed near the bottom of the window (just above the critical status
+        // bar) so the yellow banner doesn't cover the top toolbar or the
+        // flight-mode indicator drawer that opens right below it.
+        y:                  Math.max(ScreenTools.toolbarHeight + ScreenTools.defaultFontPixelHeight,
+                                     mainWindow.height - height - ScreenTools.defaultFontPixelHeight * 8)
         x:                  Math.round((mainWindow.width - width) * 0.5)
         width:              mainWindow.width  * 0.55
         height:             criticalVehicleMessageText.contentHeight + ScreenTools.defaultFontPixelHeight * 2
@@ -409,6 +460,32 @@ ApplicationWindow {
 
         property alias  criticalVehicleMessage:             criticalVehicleMessageText.text
         property bool   additionalCriticalMessagesReceived: false
+
+        // Auto-dismiss timer — the stock popup blocks the UI forever until
+        // tapped. Fire the same dismiss path after a fixed delay; reset the
+        // timer when another error arrives while we're still visible.
+        Timer {
+            id:             autoDismissTimer
+            interval:       1500
+            repeat:         false
+            onTriggered:    criticalVehicleMessagePopup.close()
+        }
+
+        onOpened: autoDismissTimer.restart()
+        onAdditionalCriticalMessagesReceivedChanged: {
+            if (additionalCriticalMessagesReceived) {
+                autoDismissTimer.restart()
+            }
+        }
+        onClosed: {
+            autoDismissTimer.stop()
+            if (additionalCriticalMessagesReceived) {
+                additionalCriticalMessagesReceived = false
+                flyView.dropMainStatusIndicatorTool()
+            } else if (QGroundControl.multiVehicleManager.activeVehicle) {
+                QGroundControl.multiVehicleManager.activeVehicle.resetErrorLevelMessages()
+            }
+        }
 
         background: Rectangle {
             anchors.fill:   parent
@@ -475,15 +552,9 @@ ApplicationWindow {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: {
-                criticalVehicleMessagePopup.close()
-                if (criticalVehicleMessagePopup.additionalCriticalMessagesReceived) {
-                    criticalVehicleMessagePopup.additionalCriticalMessagesReceived = false;
-                    flyView.dropMainStatusIndicatorTool();
-                } else {
-                    QGroundControl.multiVehicleManager.activeVehicle.resetErrorLevelMessages();
-                }
-            }
+            // The onClosed handler above owns the acknowledge/drawer logic
+            // so timer and tap dismissals share the same code path.
+            onClicked: criticalVehicleMessagePopup.close()
         }
     }
 

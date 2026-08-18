@@ -429,6 +429,11 @@ void APMFirmwarePlugin::initializeStreamRates(Vehicle *vehicle)
     // make the LandAbort action available.
     vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1, MAV_CMD_SET_MESSAGE_INTERVAL, false /* showError */, MAVLINK_MSG_ID_EXTENDED_SYS_STATE, 1000000 /* 1 second interval in usec */);
 
+    // ArduPilot doesn't stream estimator status unless requested.
+    vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1, MAV_CMD_SET_MESSAGE_INTERVAL, false /* showError */, MAVLINK_MSG_ID_ESTIMATOR_STATUS, 500000 /* 2 Hz interval in usec */);
+    // ArduPilot EKF_STATUS_REPORT for estimator health ratios.
+    vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1, MAV_CMD_SET_MESSAGE_INTERVAL, false /* showError */, MAVLINK_MSG_ID_EKF_STATUS_REPORT, 500000 /* 2 Hz interval in usec */);
+
     instanceData->lastBatteryStatusTime = instanceData->lastHomePositionTime = QTime::currentTime();
 }
 

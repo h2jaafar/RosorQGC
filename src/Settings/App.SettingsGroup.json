@@ -141,6 +141,61 @@
     "default":              true
 },
 {
+    "name":             "fieldModeEnabled",
+    "shortDesc":        "Field Mode enabled",
+    "type":             "bool",
+    "default":          false
+},
+{
+    "name":             "fieldModeAllowPlan",
+    "shortDesc":        "Allow Plan view while in Field Mode",
+    "type":             "bool",
+    "default":          false
+},
+{
+    "name":             "modernHudEnabled",
+    "shortDesc":        "Modern HUD enabled",
+    "type":             "bool",
+    "default":          false
+},
+{
+    "name":             "modernHudFieldDefaultApplied",
+    "shortDesc":        "Modern HUD field default applied",
+    "type":             "bool",
+    "default":          false
+},
+{
+    "name":             "parameterFavorites",
+    "shortDesc":        "Parameter favorites list",
+    "type":             "string",
+    "default":          ""
+},
+{
+    "name":             "namedFloatsToShow",
+    "shortDesc":        "MAVLink named floats to display in the Fly view",
+    "longDesc":         "Comma-separated list of NAMED_VALUE_FLOAT entries to show beneath the critical status bar. Each entry is NAME or NAME:Label. Use #Text for a header chip (no value). Example: U3M:Radar Alt, #Closest Obstacles:, O_C1M:1",
+    "type":             "string",
+    "default":          "U3M:Radar Alt, #Closest:, O_C1M:, O_C2M:, O_C3M:, U3HZ:Alt Hz, O_HZ:OA Hz"
+},
+{
+    "name":             "parameterFavoritesCopterDefaults",
+    "shortDesc":        "Default parameter favorites for Copter",
+    "type":             "string",
+    "default":          "BATT_MONITOR,BATT_LOW_VOLT,BATT_CRT_VOLT,EK3_SRC1_POSXY,EK3_SRC1_POSZ,EK3_SRC1_VELXY,EK3_SRC1_VELZ,FS_THR_ENABLE,FS_EKF_ACTION,RNGFND1_TYPE"
+},
+{
+    "name":             "parameterFavoritesPlaneDefaults",
+    "shortDesc":        "Default parameter favorites for Plane",
+    "type":             "string",
+    "default":          "ARSPD_FBW_MIN,ARSPD_FBW_MAX,TECS_SPDWEIGHT,TRIM_ARSPD_CM,BATT_MONITOR,BATT_LOW_VOLT,FS_THR_ENABLE,FS_EKF_ACTION"
+},
+{
+    "name":             "parameterFavoritesRoverDefaults",
+    "shortDesc":        "Default parameter favorites for Rover",
+    "type":             "string",
+    "default":          "CRUISE_SPEED,CRUISE_THROTTLE,ATC_STEER_P,ATC_ACCEL_MAX,BATT_MONITOR,BATT_LOW_VOLT,FS_THR_ENABLE,FS_EKF_ACTION"
+},
+{
     "name":                 "appFontPointSize",
     "shortDesc":     "Application font size",
     "longDesc":      "The point size for the default font used.",

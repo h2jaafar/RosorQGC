@@ -11,6 +11,7 @@ qt_add_qml_module(FlyViewModule
     RESOURCE_PREFIX /qml
     QML_FILES
         CustomGuidedActionsController.qml
+        CriticalStatusBar.qml
         DefaultChecklist.qml
         FixedWingChecklist.qml
         FlightDisplayViewDummy.qml
@@ -46,12 +47,18 @@ qt_add_qml_module(FlyViewModule
         GuidedActionTakeoff.qml
         GuidedToolStripAction.qml
         GuidedValueSlider.qml
+        EkfStatusPopup.qml
+        MissionQuickVerifyDialog.qml
+        ObstacleProfilePopup.qml
+        ObstacleProfileView.qml
         MultiRotorChecklist.qml
         MultiVehicleList.qml
+        ModernHud.qml
         ObstacleDistanceOverlay.qml
         ObstacleDistanceOverlayMap.qml
         ObstacleDistanceOverlayVideo.qml
         OnScreenGimbalController.qml
+        ParameterFavoritesPanel.qml
         PreFlightBatteryCheck.qml
         PreFlightCheckList.qml
         PreFlightCheckListShowAction.qml

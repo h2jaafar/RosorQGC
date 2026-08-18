@@ -3,6 +3,10 @@
 
 #include <QtCore/QJniEnvironment>
 #include <QtCore/QJniObject>
+#include <QtCore/QAtomicInteger>
+#include <QtCore/QHash>
+#include <QtCore/QMutex>
+#include <QtCore/QMutexLocker>
 
 #include <qserialport_p.h>
 #include <qserialportinfo_p.h>
@@ -13,6 +17,50 @@ QGC_LOGGING_CATEGORY(AndroidSerialLog, "qgc.android.androidserial");
 
 namespace AndroidSerial
 {
+
+// Live-port registry keyed by a monotonic 64-bit handle instead of the raw
+// QSerialPortPrivate* the way Java used to receive it. This eliminates a
+// use-after-free race where port A closes, port B re-uses the same heap
+// address, and a stale Java-side callback for A (via SerialInputOutputManager's
+// async stop) dispatches into partially-alive B → SIGSEGV in QRingBuffer.
+// Handles never repeat, so a stale callback fails the lookup cleanly.
+//
+// The mutex still gates dispatch vs unregister so close() blocks any
+// in-flight callback before letting the C++ object die.
+static QMutex s_livePortsMutex;
+static QHash<qint64, QSerialPortPrivate *> s_liveByHandle;
+static QHash<QSerialPortPrivate *, qint64> s_handleByPtr;
+static QAtomicInteger<qint64> s_nextHandle{1};
+
+static qint64 _issueHandle(QSerialPortPrivate *classPtr)
+{
+    const qint64 handle = s_nextHandle.fetchAndAddOrdered(1);
+    QMutexLocker locker(&s_livePortsMutex);
+    s_liveByHandle.insert(handle, classPtr);
+    s_handleByPtr.insert(classPtr, handle);
+    return handle;
+}
+
+static void _dropHandle(qint64 handle)
+{
+    QMutexLocker locker(&s_livePortsMutex);
+    QSerialPortPrivate *ptr = s_liveByHandle.take(handle);
+    if (ptr) {
+        s_handleByPtr.remove(ptr);
+    }
+}
+
+void unregisterClassPtr(QSerialPortPrivate *classPtr)
+{
+    if (!classPtr) {
+        return;
+    }
+    QMutexLocker locker(&s_livePortsMutex);
+    const qint64 handle = s_handleByPtr.take(classPtr);
+    if (handle) {
+        s_liveByHandle.remove(handle);
+    }
+}
 
 jclass getSerialManagerClass()
 {
@@ -72,18 +120,25 @@ void setNativeMethods()
     (void) jniEnv.checkAndClearExceptions();
 }
 
-void jniDeviceHasDisconnected(JNIEnv *env, jobject obj, jlong classPtr)
+void jniDeviceHasDisconnected(JNIEnv *env, jobject obj, jlong handle)
 {
     Q_UNUSED(env); Q_UNUSED(obj);
 
-    if (classPtr == 0) {
-        qCWarning(AndroidSerialLog) << "nativeDeviceHasDisconnected called with classPtr=0";
+    if (handle == 0) {
+        qCWarning(AndroidSerialLog) << "nativeDeviceHasDisconnected called with handle=0";
         return;
     }
 
-    QSerialPortPrivate* const serialPortPrivate = reinterpret_cast<QSerialPortPrivate*>(classPtr);
+    // Look up the live port by handle. Stale callbacks (for a port that has
+    // been closed / re-opened elsewhere at the same heap address) simply
+    // don't find their handle and are dropped.
+    QSerialPortPrivate *serialPortPrivate = nullptr;
+    {
+        QMutexLocker locker(&s_livePortsMutex);
+        serialPortPrivate = s_liveByHandle.value(handle, nullptr);
+    }
     if (!serialPortPrivate) {
-        qCWarning(AndroidSerialLog) << "serialPortPrivate is null in nativeDeviceHasDisconnected";
+        qCDebug(AndroidSerialLog) << "Disconnect callback for stale handle; ignoring" << handle;
         return;
     }
 
@@ -103,12 +158,12 @@ void jniDeviceHasDisconnected(JNIEnv *env, jobject obj, jlong classPtr)
     }
 }
 
-void jniDeviceNewData(JNIEnv *env, jobject obj, jlong classPtr, jbyteArray data)
+void jniDeviceNewData(JNIEnv *env, jobject obj, jlong handle, jbyteArray data)
 {
     Q_UNUSED(obj);
 
-    if (classPtr == 0) {
-        qCWarning(AndroidSerialLog) << "nativeDeviceNewData called with classPtr=0";
+    if (handle == 0) {
+        qCWarning(AndroidSerialLog) << "nativeDeviceNewData called with handle=0";
         return;
     }
 
@@ -132,25 +187,32 @@ void jniDeviceNewData(JNIEnv *env, jobject obj, jlong classPtr, jbyteArray data)
     const QByteArray byteArray(reinterpret_cast<char*>(bytes), len);
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 
-    QSerialPortPrivate* const serialPortPrivate = reinterpret_cast<QSerialPortPrivate*>(classPtr);
-    if (!serialPortPrivate) {
-        qCWarning(AndroidSerialLog) << "serialPortPrivate is null";
-        return;
+    // Look up + dispatch atomically under the mutex. If the handle isn't in
+    // the live map (port already closed OR this is a stale callback from a
+    // previous port that shared its heap address with something else), the
+    // callback is silently dropped. close()'s unregisterClassPtr also holds
+    // this mutex, so it blocks until any in-flight dispatch here finishes
+    // before letting the C++ object be destroyed.
+    {
+        QMutexLocker locker(&s_livePortsMutex);
+        QSerialPortPrivate * const serialPortPrivate = s_liveByHandle.value(handle, nullptr);
+        if (!serialPortPrivate) {
+            return;
+        }
+        serialPortPrivate->newDataArrived(byteArray.constData(), byteArray.size());
     }
-
-    serialPortPrivate->newDataArrived(byteArray.constData(), byteArray.size());
 
     if (QJniEnvironment::checkAndClearExceptions(env)) {
         qCWarning(AndroidSerialLog) << "Exception occurred in nativeDeviceNewData";
     }
 }
 
-void jniDeviceException(JNIEnv *env, jobject obj, jlong classPtr, jstring message)
+void jniDeviceException(JNIEnv *env, jobject obj, jlong handle, jstring message)
 {
     Q_UNUSED(obj);
 
-    if (classPtr == 0) {
-        qCWarning(AndroidSerialLog) << "nativeDeviceException called with classPtr=0";
+    if (handle == 0) {
+        qCWarning(AndroidSerialLog) << "nativeDeviceException called with handle=0";
         return;
     }
 
@@ -168,13 +230,14 @@ void jniDeviceException(JNIEnv *env, jobject obj, jlong classPtr, jstring messag
     const QString exceptionMessage = QString::fromUtf8(rawMessage);
     env->ReleaseStringUTFChars(message, rawMessage);
 
-    QSerialPortPrivate* const serialPortPrivate = reinterpret_cast<QSerialPortPrivate*>(classPtr);
-    if (!serialPortPrivate) {
-        qCWarning(AndroidSerialLog) << "serialPortPrivate is null";
-        return;
+    {
+        QMutexLocker locker(&s_livePortsMutex);
+        QSerialPortPrivate * const serialPortPrivate = s_liveByHandle.value(handle, nullptr);
+        if (!serialPortPrivate) {
+            return;
+        }
+        serialPortPrivate->exceptionArrived(exceptionMessage);
     }
-
-    serialPortPrivate->exceptionArrived(exceptionMessage);
     qCWarning(AndroidSerialLog) << "Exception from Java:" << exceptionMessage;
 
     if (QJniEnvironment::checkAndClearExceptions(env)) {
@@ -361,10 +424,22 @@ int open(const QString &portName, QSerialPortPrivate *classPtr)
         return -1;
     }
 
-    const jint deviceId = env->CallStaticIntMethod(javaClass, methodId, name.object<jstring>(), reinterpret_cast<jlong>(classPtr));
+    // Register BEFORE the Java open so any callback fired by the
+    // SerialInputOutputManager during startup finds us in the map.
+    // We pass a monotonic handle (not the raw pointer) so stale callbacks
+    // arriving after close+reopen at the same heap address can't dispatch
+    // to the newly-opened port.
+    const qint64 handle = _issueHandle(classPtr);
+
+    const jint deviceId = env->CallStaticIntMethod(javaClass, methodId, name.object<jstring>(), static_cast<jlong>(handle));
     if (env.checkAndClearExceptions()) {
         qCWarning(AndroidSerialLog) << "Exception occurred while calling open";
+        _dropHandle(handle);
         return -1;
+    }
+
+    if (deviceId == INVALID_DEVICE_ID) {
+        _dropHandle(handle);
     }
 
     return static_cast<int>(deviceId);

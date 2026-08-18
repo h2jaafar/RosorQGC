@@ -1,6 +1,8 @@
 #include "VehicleEstimatorStatusFactGroup.h"
 #include "Vehicle.h"
 
+#include <QtCore/QDateTime>
+
 VehicleEstimatorStatusFactGroup::VehicleEstimatorStatusFactGroup(QObject *parent)
     : FactGroup(500, QStringLiteral(":/json/Vehicle/EstimatorStatusFactGroup.json"), parent)
 {
@@ -59,4 +61,16 @@ void VehicleEstimatorStatusFactGroup::handleMessage(Vehicle *vehicle, const mavl
     vertPosAccuracy()->setRawValue(estimatorStatus.pos_vert_accuracy);
 
     _setTelemetryAvailable(true);
+
+    static qint64 lastLogMs = 0;
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    if ((nowMs - lastLogMs) > 5000) {
+        lastLogMs = nowMs;
+        qCDebug(VehicleLog) << "Estimator status ratios"
+                            << "vel" << estimatorStatus.vel_ratio
+                            << "posH" << estimatorStatus.pos_horiz_ratio
+                            << "posV" << estimatorStatus.pos_vert_ratio
+                            << "mag" << estimatorStatus.mag_ratio
+                            << "hagl" << estimatorStatus.hagl_ratio;
+    }
 }

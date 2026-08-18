@@ -5,9 +5,21 @@
 #include "SettingsManager.h"
 
 #include <QtConcurrent/QtConcurrentRun>
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
 #include <QtCore/QGlobalStatic>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QStringListModel>
 #include <QtCore/QTextStream>
+
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <sys/ucontext.h>
+#include <unistd.h>
+#include <unwind.h>
 
 QGC_LOGGING_CATEGORY(QGCLoggingLog, "Utilities.QGCLogging")
 
@@ -15,10 +27,176 @@ Q_GLOBAL_STATIC(QGCLogging, _qgcLogging)
 
 static QtMessageHandler defaultHandler = nullptr;
 
+// Path to the persistent crash log file. Cached at startup so the signal
+// handler (which must be async-signal-safe) can write to it without doing
+// any Qt allocations.
+static char _crashLogPath[1024] = {0};
+
+static QString resolveCrashLogPath()
+{
+    // IMPORTANT: this runs very early in startup, before SettingsManager's
+    // Facts are fully initialized — calling AppSettings::savePath() here
+    // would null-deref. Use QStandardPaths only (Qt is already up at this
+    // point since QGCApplication was constructed before installHandler()).
+    //
+    // Prefer Downloads because it's adb-pull-able on every Android version,
+    // even with scoped storage. Falls back to AppData if Downloads isn't
+    // available (e.g. desktop builds).
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    if (dir.isEmpty()) {
+        dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    }
+    if (dir.isEmpty()) {
+        dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    }
+    QDir().mkpath(dir);
+    return QDir(dir).absoluteFilePath(QStringLiteral("RosorQGC-last-crash.log"));
+}
+
+static void writeCrashEntry(const QString &message)
+{
+    const QString path = QString::fromLocal8Bit(_crashLogPath);
+    QFile f(path.isEmpty() ? resolveCrashLogPath() : path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&f);
+        out << QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)
+            << " FATAL: " << message << '\n';
+        f.flush();
+        f.close();
+    }
+}
+
+namespace {
+
+// Async-signal-safe helpers: no allocations, no malloc-heavy stdio.
+// snprintf into a fixed buffer is signal-safe on glibc/bionic since it
+// doesn't take global locks for the C99-only conversions we use.
+
+struct BacktraceState {
+    void  **current;
+    void **end;
+};
+
+_Unwind_Reason_Code unwindCb(struct _Unwind_Context *ctx, void *arg)
+{
+    BacktraceState *s = static_cast<BacktraceState *>(arg);
+    uintptr_t pc = _Unwind_GetIP(ctx);
+    if (pc) {
+        if (s->current == s->end) {
+            return _URC_END_OF_STACK;
+        }
+        *s->current++ = reinterpret_cast<void *>(pc);
+    }
+    return _URC_NO_REASON;
+}
+
+void writeCrashLine(int fd, const char *s)
+{
+    (void) write(fd, s, strlen(s));
+}
+
+void writeCrashHex(int fd, uintptr_t v)
+{
+    char buf[32];
+    int n = snprintf(buf, sizeof(buf), "0x%016" PRIxPTR, v);
+    if (n > 0) {
+        (void) write(fd, buf, static_cast<size_t>(n));
+    }
+}
+
+} // namespace
+
+extern "C" void _qgcCrashSignalHandler(int signum, siginfo_t *info, void *ucontext)
+{
+    // Async-signal-safe path: only POSIX I/O + fixed-size buffers.
+    if (_crashLogPath[0] == 0) {
+        // Path not cached yet; can't recover safely.
+        signal(signum, SIG_DFL);
+        raise(signum);
+        return;
+    }
+
+    int fd = open(_crashLogPath, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) {
+        const char *signame = "UNKNOWN";
+        switch (signum) {
+            case SIGSEGV: signame = "SIGSEGV"; break;
+            case SIGABRT: signame = "SIGABRT"; break;
+            case SIGBUS:  signame = "SIGBUS";  break;
+            case SIGFPE:  signame = "SIGFPE";  break;
+            case SIGILL:  signame = "SIGILL";  break;
+            case SIGPIPE: signame = "SIGPIPE"; break;
+        }
+
+        writeCrashLine(fd, "\n*** CRASH signal=");
+        writeCrashLine(fd, signame);
+        writeCrashLine(fd, " ***\n");
+
+        // Fault address (SIGSEGV / SIGBUS): where did the deref go wrong?
+        if (info) {
+            writeCrashLine(fd, "  fault_addr=");
+            writeCrashHex(fd, reinterpret_cast<uintptr_t>(info->si_addr));
+            writeCrashLine(fd, "\n");
+        }
+
+        // Program counter at time of crash (arm64 mcontext).
+#if defined(__aarch64__)
+        if (ucontext) {
+            const ucontext_t *uc = static_cast<const ucontext_t *>(ucontext);
+            writeCrashLine(fd, "  pc=");
+            writeCrashHex(fd, static_cast<uintptr_t>(uc->uc_mcontext.pc));
+            writeCrashLine(fd, "  lr=");
+            writeCrashHex(fd, static_cast<uintptr_t>(uc->uc_mcontext.regs[30]));
+            writeCrashLine(fd, "\n");
+        }
+#else
+        (void) ucontext;
+#endif
+
+        // Stack trace via _Unwind_Backtrace (available in libunwind /
+        // libgcc, works fine in signal handlers in practice — same
+        // approach used by Breakpad and sentry-native).
+        void *frames[32];
+        BacktraceState st = { frames, frames + 32 };
+        _Unwind_Backtrace(unwindCb, &st);
+        int nFrames = static_cast<int>(st.current - frames);
+        writeCrashLine(fd, "  backtrace (");
+        {
+            char n[16];
+            int m = snprintf(n, sizeof(n), "%d", nFrames);
+            if (m > 0) (void) write(fd, n, static_cast<size_t>(m));
+        }
+        writeCrashLine(fd, " frames):\n");
+        for (int i = 0; i < nFrames; ++i) {
+            writeCrashLine(fd, "    #");
+            {
+                char n[8];
+                int m = snprintf(n, sizeof(n), "%02d ", i);
+                if (m > 0) (void) write(fd, n, static_cast<size_t>(m));
+            }
+            writeCrashHex(fd, reinterpret_cast<uintptr_t>(frames[i]));
+            writeCrashLine(fd, "\n");
+        }
+
+        (void) fsync(fd);
+        (void) close(fd);
+    }
+
+    // Re-raise so Android still produces a tombstone / proper process exit.
+    signal(signum, SIG_DFL);
+    raise(signum);
+}
+
 static void msgHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     // Format the message using Qt's pattern
     const QString message = qFormatLogMessage(type, context, msg);
+
+    // For fatal messages, persist BEFORE the abort() that Qt is about to call,
+    // so we don't lose the actual reason in the upcoming process death.
+    if (type == QtFatalMsg) {
+        writeCrashEntry(message);
+    }
 
     // Filter out Qt Quick internals
     if (QGCLogging::instance() && !QString(context.category).startsWith("qt.quick")) {
@@ -67,6 +245,33 @@ void QGCLogging::installHandler()
 
     // Install our custom handler
     defaultHandler = qInstallMessageHandler(msgHandler);
+
+    // Cache the crash log path into a C string so signal handlers can use it
+    // without doing any allocations.
+    const QString path = resolveCrashLogPath();
+    const QByteArray utf8 = path.toLocal8Bit();
+    qstrncpy(_crashLogPath, utf8.constData(), sizeof(_crashLogPath));
+
+    // Note a clean app start in the crash log so we can tell crashes apart.
+    QFile marker(path);
+    if (marker.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&marker);
+        out << "\n=== START "
+            << QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)
+            << " pid=" << QCoreApplication::applicationPid()
+            << " ===\n";
+        marker.close();
+    }
+
+    // Native signal handlers so SIGSEGV/SIGABRT leave a breadcrumb on disk.
+    struct sigaction sa;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = _qgcCrashSignalHandler;
+    sa.sa_flags = SA_RESETHAND | SA_SIGINFO; // run once, then default; also want siginfo + ucontext
+    sigemptyset(&sa.sa_mask);
+    for (int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL}) {
+        (void) sigaction(sig, &sa, nullptr);
+    }
 }
 
 void QGCLogging::log(const QString &message)

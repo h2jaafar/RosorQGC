@@ -101,6 +101,8 @@ Vehicle::Vehicle(LinkInterface*             link,
     , _localPositionFactGroup       (this)
     , _localPositionSetpointFactGroup(this)
     , _estimatorStatusFactGroup     (this)
+    , _ekfStatusReportFactGroup     (this)
+    , _namedValueFloatFactGroup     (this)
     , _hygrometerFactGroup          (this)
     , _generatorFactGroup           (this)
     , _efiFactGroup                 (this)
@@ -235,6 +237,18 @@ void Vehicle::_commonInit(LinkInterface* link)
 {
     _firmwarePlugin = FirmwarePluginManager::instance()->firmwarePluginForAutopilot(_firmwareType, _vehicleType);
 
+    // Reset rcRSSI to 255 (invalid) if we haven't seen an RC RSSI update
+    // for a few seconds — keeps the pill honest when the RC link drops.
+    _rcRSSITimeoutTimer.setSingleShot(true);
+    _rcRSSITimeoutTimer.setInterval(2500);
+    (void) connect(&_rcRSSITimeoutTimer, &QTimer::timeout, this, [this]() {
+        if (_rcRSSI != 255) {
+            _rcRSSI = 255;
+            _rcRSSIstore = 255.0;
+            emit rcRSSIChanged(_rcRSSI);
+        }
+    });
+
     connect(_firmwarePlugin, &FirmwarePlugin::toolIndicatorsChanged, this, &Vehicle::toolIndicatorsChanged);
 
     connect(this, &Vehicle::coordinateChanged,      this, &Vehicle::_updateDistanceHeadingHome);
@@ -320,6 +334,8 @@ void Vehicle::_commonInit(LinkInterface* link)
     _addFactGroup(&_localPositionFactGroup,     _localPositionFactGroupName);
     _addFactGroup(&_localPositionSetpointFactGroup,_localPositionSetpointFactGroupName);
     _addFactGroup(&_estimatorStatusFactGroup,   _estimatorStatusFactGroupName);
+    _addFactGroup(&_ekfStatusReportFactGroup,   _ekfStatusReportFactGroupName);
+    _addFactGroup(&_namedValueFloatFactGroup,   _namedValueFloatFactGroupName);
     _addFactGroup(&_hygrometerFactGroup,        _hygrometerFactGroupName);
     _addFactGroup(&_generatorFactGroup,         _generatorFactGroupName);
     _addFactGroup(&_efiFactGroup,               _efiFactGroupName);
@@ -1755,6 +1771,9 @@ void Vehicle::_remoteControlRSSIChanged(uint8_t rssi)
         }
         return;
     }
+    // Any valid RC RSSI update pushes back the dropout timer; if nothing
+    // arrives within the interval, we fall back to 255 (unknown).
+    _rcRSSITimeoutTimer.start();
     //-- Initialize it
     if(_rcRSSIstore == 255.) {
         _rcRSSIstore = (double)rssi;

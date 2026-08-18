@@ -13,7 +13,7 @@ Rectangle {
     height:         Math.max(contentHeight, minimumHeight)
     color:          qgcPal.toolbarBackground
     radius:         ScreenTools.defaultFontPixelHeight / 2
-    visible:        !QGroundControl.videoManager.fullScreen && _multipleVehicles && _settingEnableMVPanel
+    visible:        !QGroundControl.settingsManager.appSettings.fieldModeEnabled.value && !QGroundControl.videoManager.fullScreen && _multipleVehicles && _settingEnableMVPanel
     clip:           true
 
     property bool _settingEnableMVPanel:    QGroundControl.settingsManager.appSettings.enableMultiVehiclePanel.value

@@ -34,6 +34,7 @@ ToolIndicatorPage {
                 Layout.fillWidth: true
                 text: qsTr("Plan")
                 imageResource: "/qmlimages/Plan.svg"
+                visible: !QGroundControl.settingsManager.appSettings.fieldModeEnabled.value || QGroundControl.settingsManager.appSettings.fieldModeAllowPlan.value
                 onClicked: {
                     if (mainWindow.allowViewSwitch()) {
                         mainWindow.closeIndicatorDrawer()
@@ -47,7 +48,7 @@ ToolIndicatorPage {
                 Layout.fillWidth: true
                 text: qsTr("Analyze")
                 imageResource: "/qmlimages/Analyze.svg"
-                visible: QGroundControl.corePlugin.showAdvancedUI
+                visible: QGroundControl.corePlugin.showAdvancedUI && !QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
                 onClicked: {
                     if (mainWindow.allowViewSwitch()) {
                         mainWindow.closeIndicatorDrawer()
@@ -75,7 +76,7 @@ ToolIndicatorPage {
                 implicitHeight: root._toolButtonHeight
                 Layout.fillWidth: true
                 text: qsTr("Settings")
-                imageResource: "/res/QGCLogoWhite.svg"
+                imageResource: "/res/RosorLogo.png"
                 visible: !QGroundControl.corePlugin.options.combineSettingsAndSetup
                 onClicked: {
                     if (mainWindow.allowViewSwitch()) {

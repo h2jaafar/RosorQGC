@@ -1,4 +1,4 @@
-package org.mavlink.qgroundcontrol;
+package ca.rosor.qgc;
 
 public final class QGCUsbId {
 

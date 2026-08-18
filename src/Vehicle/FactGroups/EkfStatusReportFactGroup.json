@@ -1,0 +1,48 @@
+{
+    "version":  1,
+    "fileType": "FactMetaData",
+    "QGC.MetaData.Facts":
+[
+{
+    "name":         "flags",
+    "shortDesc":    "EKF flags",
+    "type":         "uint16",
+    "default":      0
+},
+{
+    "name":             "velVariance",
+    "shortDesc":        "Velocity variance",
+    "type":             "float",
+    "decimalPlaces":    2,
+    "default":          null
+},
+{
+    "name":             "posHorizVariance",
+    "shortDesc":        "Horizontal position variance",
+    "type":             "float",
+    "decimalPlaces":    2,
+    "default":          null
+},
+{
+    "name":             "posVertVariance",
+    "shortDesc":        "Vertical position variance",
+    "type":             "float",
+    "decimalPlaces":    2,
+    "default":          null
+},
+{
+    "name":             "compassVariance",
+    "shortDesc":        "Compass variance",
+    "type":             "float",
+    "decimalPlaces":    2,
+    "default":          null
+},
+{
+    "name":             "terrainAltVariance",
+    "shortDesc":        "Terrain altitude variance",
+    "type":             "float",
+    "decimalPlaces":    2,
+    "default":          null
+}
+]
+}

@@ -6,11 +6,14 @@ import QGroundControl.Controls
 import QGroundControl.FlyView
 
 RowLayout {
+    property bool _fieldModeEnabled: QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
+
     TelemetryValuesBar {
         Layout.alignment:       Qt.AlignBottom
         extraWidth:             instrumentPanel.extraValuesWidth
         settingsGroup:          factValueGrid.telemetryBarSettingsGroup
         specificVehicleForCard: null // Tracks active vehicle
+        visible:                !_fieldModeEnabled
     }
 
     FlyViewInstrumentPanel {

@@ -24,12 +24,14 @@
 #include "VehicleDistanceSensorFactGroup.h"
 #include "VehicleEFIFactGroup.h"
 #include "VehicleEstimatorStatusFactGroup.h"
+#include "VehicleEkfStatusReportFactGroup.h"
 #include "VehicleGeneratorFactGroup.h"
 #include "VehicleGPS2FactGroup.h"
 #include "VehicleGPSFactGroup.h"
 #include "VehicleHygrometerFactGroup.h"
 #include "VehicleLocalPositionFactGroup.h"
 #include "VehicleLocalPositionSetpointFactGroup.h"
+#include "VehicleNamedValueFloatFactGroup.h"
 #include "VehicleRPMFactGroup.h"
 #include "VehicleSetpointFactGroup.h"
 #include "VehicleTemperatureFactGroup.h"
@@ -249,6 +251,8 @@ public:
     Q_PROPERTY(FactGroup*           clock           READ clockFactGroup             CONSTANT)
     Q_PROPERTY(FactGroup*           setpoint        READ setpointFactGroup          CONSTANT)
     Q_PROPERTY(FactGroup*           estimatorStatus READ estimatorStatusFactGroup   CONSTANT)
+    Q_PROPERTY(FactGroup*           ekfStatusReport READ ekfStatusReportFactGroup   CONSTANT)
+    Q_PROPERTY(FactGroup*           namedValueFloats READ namedValueFloatFactGroup  CONSTANT)
     Q_PROPERTY(FactGroup*           terrain         READ terrainFactGroup           CONSTANT)
     Q_PROPERTY(FactGroup*           distanceSensors READ distanceSensorFactGroup    CONSTANT)
     Q_PROPERTY(FactGroup*           localPosition   READ localPositionFactGroup     CONSTANT)
@@ -578,6 +582,8 @@ public:
     FactGroup* localPositionFactGroup       () { return &_localPositionFactGroup; }
     FactGroup* localPositionSetpointFactGroup() { return &_localPositionSetpointFactGroup; }
     FactGroup* estimatorStatusFactGroup     () { return &_estimatorStatusFactGroup; }
+    FactGroup* ekfStatusReportFactGroup     () { return &_ekfStatusReportFactGroup; }
+    FactGroup* namedValueFloatFactGroup     () { return &_namedValueFloatFactGroup; }
     FactGroup* terrainFactGroup             () { return &_terrainFactGroup; }
     FactGroup* hygrometerFactGroup          () { return &_hygrometerFactGroup; }
     FactGroup* generatorFactGroup           () { return &_generatorFactGroup; }
@@ -995,6 +1001,10 @@ void _activeVehicleChanged          (Vehicle* newActiveVehicle);
 
     int             _rcRSSI = 255;
     double          _rcRSSIstore = 255;
+    // Resets _rcRSSI to 255 (invalid) if no RC RSSI updates arrive for a
+    // few seconds — prevents the pill from showing a stale value after
+    // the RC link drops.
+    QTimer          _rcRSSITimeoutTimer;
     bool            _flying = false;
     bool            _landing = false;
     bool            _vtolInFwdFlight = false;
@@ -1205,6 +1215,8 @@ void _activeVehicleChanged          (Vehicle* newActiveVehicle);
     const QString _localPositionFactGroupName =      QStringLiteral("localPosition");
     const QString _localPositionSetpointFactGroupName = QStringLiteral("localPositionSetpoint");
     const QString _estimatorStatusFactGroupName =    QStringLiteral("estimatorStatus");
+    const QString _ekfStatusReportFactGroupName =    QStringLiteral("ekfStatusReport");
+    const QString _namedValueFloatFactGroupName =    QStringLiteral("namedValueFloats");
     const QString _terrainFactGroupName =            QStringLiteral("terrain");
     const QString _hygrometerFactGroupName =         QStringLiteral("hygrometer");
     const QString _generatorFactGroupName =          QStringLiteral("generator");
@@ -1223,6 +1235,8 @@ void _activeVehicleChanged          (Vehicle* newActiveVehicle);
     VehicleLocalPositionFactGroup   _localPositionFactGroup;
     VehicleLocalPositionSetpointFactGroup _localPositionSetpointFactGroup;
     VehicleEstimatorStatusFactGroup _estimatorStatusFactGroup;
+    VehicleEkfStatusReportFactGroup _ekfStatusReportFactGroup;
+    VehicleNamedValueFloatFactGroup _namedValueFloatFactGroup;
     VehicleHygrometerFactGroup      _hygrometerFactGroup;
     VehicleGeneratorFactGroup       _generatorFactGroup;
     VehicleEFIFactGroup             _efiFactGroup;

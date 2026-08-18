@@ -12,12 +12,12 @@ include(BuildConfig)
 # Application Metadata
 # ============================================================================
 
-set(QGC_APP_NAME "QGroundControl" CACHE STRING "Application name")
-set(QGC_APP_COPYRIGHT "Copyright (c) 2025 QGroundControl. All rights reserved." CACHE STRING "Copyright notice")
-set(QGC_APP_DESCRIPTION "Open Source Ground Control App" CACHE STRING "Application description")
-set(QGC_ORG_NAME "QGroundControl" CACHE STRING "Organization name")
-set(QGC_ORG_DOMAIN "qgroundcontrol.com" CACHE STRING "Organization domain")
-set(QGC_PACKAGE_NAME "org.mavlink.qgroundcontrol" CACHE STRING "Package identifier")
+set(QGC_APP_NAME "RosorQGC" CACHE STRING "Application name")
+set(QGC_APP_COPYRIGHT "Copyright (c) 2025 Rosor. All rights reserved." CACHE STRING "Copyright notice")
+set(QGC_APP_DESCRIPTION "Rosor Ground Control App (QGC fork)" CACHE STRING "Application description")
+set(QGC_ORG_NAME "Rosor" CACHE STRING "Organization name")
+set(QGC_ORG_DOMAIN "rosor.ca" CACHE STRING "Organization domain")
+set(QGC_PACKAGE_NAME "ca.rosor.qgc" CACHE STRING "Package identifier")
 
 # Settings version - increment to clear stored settings on next boot after incompatible changes
 set(QGC_SETTINGS_VERSION "9" CACHE STRING "Settings schema version")
@@ -101,7 +101,7 @@ option(QGC_DISABLE_PX4_PLUGIN_FACTORY "Disable PX4 plugin factory" OFF)
 # Android Platform
 # ----------------------------------------------------------------------------
 set(QGC_QT_ANDROID_COMPILE_SDK_VERSION "35" CACHE STRING "Android compile SDK version")
-set(QGC_QT_ANDROID_TARGET_SDK_VERSION "35" CACHE STRING "Android target SDK version")
+set(QGC_QT_ANDROID_TARGET_SDK_VERSION "34" CACHE STRING "Android target SDK version")
 set(QGC_QT_ANDROID_MIN_SDK_VERSION "28" CACHE STRING "Android minimum SDK version")
 set(QGC_ANDROID_PACKAGE_NAME "${QGC_PACKAGE_NAME}" CACHE STRING "Android package identifier")
 set(QGC_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android" CACHE PATH "Android package source directory")

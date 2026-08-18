@@ -72,6 +72,10 @@ void QSerialPortPrivate::close()
     }
 
     if (_deviceId != INVALID_DEVICE_ID) {
+        // Take ourselves out of the live-ports set FIRST. This blocks until any
+        // in-flight JNI read callback finishes, so we can't be freed under
+        // it after Java asynchronously stops the read thread.
+        AndroidSerial::unregisterClassPtr(this);
         if (!AndroidSerial::close(_deviceId)) {
             qCWarning(AndroidSerialPortLog) << "Failed to close device with ID" << _deviceId;
             setError(QSerialPortErrorInfo(QSerialPort::UnknownError, QSerialPort::tr("Closing device failed")));

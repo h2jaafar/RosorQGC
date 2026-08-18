@@ -17,6 +17,8 @@ target_sources(${CMAKE_PROJECT_NAME}
         VehicleDistanceSensorFactGroup.h
         VehicleEFIFactGroup.cc
         VehicleEFIFactGroup.h
+        VehicleEkfStatusReportFactGroup.cc
+        VehicleEkfStatusReportFactGroup.h
         VehicleEstimatorStatusFactGroup.cc
         VehicleEstimatorStatusFactGroup.h
         VehicleGeneratorFactGroup.cc
@@ -31,6 +33,8 @@ target_sources(${CMAKE_PROJECT_NAME}
         VehicleLocalPositionFactGroup.h
         VehicleLocalPositionSetpointFactGroup.cc
         VehicleLocalPositionSetpointFactGroup.h
+        VehicleNamedValueFloatFactGroup.cc
+        VehicleNamedValueFloatFactGroup.h
         VehicleRPMFactGroup.cc
         VehicleRPMFactGroup.h
         VehicleSetpointFactGroup.cc
@@ -55,6 +59,7 @@ set(JSON_FILES
     EscStatusFactGroup.json
     LocalPositionFact.json
     EstimatorStatusFactGroup.json
+    EkfStatusReportFactGroup.json
     EFIFact.json
     BatteryFact.json
     ClockFact.json
