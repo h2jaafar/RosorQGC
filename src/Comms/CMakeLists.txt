@@ -68,12 +68,7 @@ endif()
 # Bluetooth Communication
 # ----------------------------------------------------------------------------
 if(QGC_ENABLE_BLUETOOTH)
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Bluetooth)
-    target_sources(${CMAKE_PROJECT_NAME}
-        PRIVATE
-            BluetoothLink.cc
-            BluetoothLink.h
-    )
+    add_subdirectory(Bluetooth)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QGC_ENABLE_BLUETOOTH)
 endif()
 

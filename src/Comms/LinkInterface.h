@@ -6,6 +6,7 @@
 #include "LinkConfiguration.h"
 
 class LinkManager;
+class QThread;
 
 Q_DECLARE_LOGGING_CATEGORY(LinkInterfaceLog)
 
@@ -16,6 +17,7 @@ class LinkInterface : public QObject
     QML_ELEMENT
     QML_UNCREATABLE("")
     friend class LinkManager;
+class QThread;
 
 public:
     virtual ~LinkInterface();
@@ -58,6 +60,13 @@ protected:
 
     void _connectionRemoved();
 
+    /// Stops a link worker thread. Waits, then terminates if allowed, then as a last resort
+    /// orphans the thread (leaks it) rather than aborting in ~QThread with the thread still
+    /// running, keeping the link configuration alive so a resumed worker can't dereference a
+    /// destroyed config. Pass allowTerminate = false when the worker holds locks that
+    /// termination could leave locked.
+    void _shutdownWorkerThread(QThread *thread, const QLoggingCategory &category, bool allowTerminate = true);
+
     SharedLinkConfigurationPtr _config;
 
 private slots:
@@ -67,6 +76,8 @@ private slots:
 private:
     /// connect is private since all links should be created through LinkManager::createConnectedLink calls
     virtual bool _connect() = 0;
+
+    void _orphanWorkerThread(QThread *thread);
 
     uint8_t _mavlinkChannel = std::numeric_limits<uint8_t>::max();
     bool _decodedFirstMavlinkPacket = false;
