@@ -25,14 +25,14 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           sparse-checkout: .github/scripts/check-sizes.py
           sparse-checkout-cone-mode: false
 
       - name: Get PR number
         id: pr
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const run = context.payload.workflow_run;
@@ -50,7 +50,7 @@ jobs:
       - name: Collect build status
         if: steps.pr.outputs.result != 'null'
         id: builds
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const headSha = context.payload.workflow_run.head_sha;
@@ -109,7 +109,7 @@ jobs:
 
       - name: Download artifacts from triggering workflow
         if: steps.pr.outputs.result != 'null'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           run-id: ${{ github.event.workflow_run.id }}
@@ -119,7 +119,7 @@ jobs:
       - name: Restore baseline sizes
         if: steps.pr.outputs.result != 'null'
         id: baseline-sizes
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: baseline-sizes.json
@@ -128,7 +128,7 @@ jobs:
       - name: Restore baseline coverage
         if: steps.pr.outputs.result != 'null'
         id: baseline-coverage
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: baseline-coverage.xml
@@ -328,13 +328,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           sparse-checkout: .github/scripts/check-sizes.py
           sparse-checkout-cone-mode: false
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           run-id: ${{ github.event.workflow_run.id }}
@@ -351,21 +351,21 @@ jobs:
 
       - name: Cache artifact sizes
         if: hashFiles('sizes.json') != ''
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: sizes.json
           key: artifact-sizes-baseline-${{ github.run_id }}
 
       - name: Cache artifact sizes as latest
         if: hashFiles('sizes.json') != ''
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: sizes.json
           key: artifact-sizes-baseline-latest
 
       - name: Save coverage baseline
         if: hashFiles('artifacts/coverage-report/coverage.xml') != ''
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: artifacts/coverage-report/coverage.xml
           key: coverage-baseline-latest
