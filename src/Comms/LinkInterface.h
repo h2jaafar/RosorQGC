@@ -17,7 +17,6 @@ class LinkInterface : public QObject
     QML_ELEMENT
     QML_UNCREATABLE("")
     friend class LinkManager;
-class QThread;
 
 public:
     virtual ~LinkInterface();
