@@ -22,6 +22,8 @@ Item {
     property var    mapControl
     property bool   isViewer3DOpen:         false
     property real   bottomRowReservedHeight: 0
+    /// True when the primary flight display, rather than the map, owns the main pane.
+    property bool   pfdIsMainPane:          false
 
     property var    _activeVehicle:         QGroundControl.multiVehicleManager.activeVehicle
     property var    _planMasterController:  globals.planMasterControllerFlyView
@@ -84,9 +86,14 @@ Item {
         anchors.right:      parent.right
         spacing:            _layoutSpacing
 
-        property real bottomEdgeRightInset:     height + _layoutMargin
+        // The flight display already carries attitude, heading, speed, altitude
+        // and climb rate. Drawing the rose and the values bar on top of it only
+        // covers the horizon with numbers the pilot is already reading.
+        visible:            !_root.pfdIsMainPane
+
+        property real bottomEdgeRightInset:     visible ? height + _layoutMargin : 0
         property real bottomEdgeCenterInset:    bottomEdgeRightInset
-        property real rightEdgeBottomInset:     width + _layoutMargin
+        property real rightEdgeBottomInset:     visible ? width + _layoutMargin : 0
     }
 
     FlyViewMissionCompleteDialog {

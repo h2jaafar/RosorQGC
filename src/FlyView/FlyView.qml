@@ -173,6 +173,7 @@ Item {
             mapControl:             _mapControl
             visible:                !QGroundControl.videoManager.fullScreen
             isViewer3DOpen:         viewer3DWindow.isOpen
+            pfdIsMainPane:          !_mainWindowIsMap && !QGroundControl.videoManager.hasVideo
         }
 
         FlyViewCustomLayer {
