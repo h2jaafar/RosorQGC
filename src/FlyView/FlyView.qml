@@ -101,6 +101,14 @@ Item {
             pipView:    _pipView
         }
 
+        // Stands in as PipView's second pane when there is no video stream, so the
+        // primary flight display can trade places with the map.
+        FlyViewPfdPane {
+            id:         pfdControl
+            pipView:    _pipView
+            visible:    !QGroundControl.videoManager.hasVideo
+        }
+
         PipView {
             id:                     _pipView
             anchors.left:           parent.left
@@ -108,13 +116,30 @@ Item {
             anchors.margins:        _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
             item1:                  mapControl
-            item2:                  QGroundControl.videoManager.hasVideo ? videoControl : null
-            show:                   QGroundControl.videoManager.hasVideo && !QGroundControl.videoManager.fullScreen &&
-                                        (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
+            item2:                  QGroundControl.videoManager.hasVideo ? videoControl : pfdControl
+            show:                   QGroundControl.videoManager.hasVideo
+                                        ? (!QGroundControl.videoManager.fullScreen &&
+                                           (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState))
+                                        : (pfdControl.pipState.state === pfdControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
             property real leftEdgeBottomInset: visible ? width + anchors.margins : 0
             property real bottomEdgeLeftInset: visible ? height + anchors.margins : 0
+        }
+
+        // Tab to swap the primary flight display with the map. Hidden when a video
+        // stream is present, since PipView is then swapping map and video instead.
+        QGCButton {
+            id:                     pfdSwapTab
+            anchors.top:            parent.top
+            anchors.right:          parent.right
+            anchors.topMargin:      toolbar.height + _toolsMargin
+            anchors.rightMargin:    _toolsMargin
+            z:                      QGroundControl.zOrderWidgets
+            visible:                !QGroundControl.videoManager.hasVideo &&
+                                        QGroundControl.corePlugin.options.flyView.showInstrumentPanel
+            text:                   _mainWindowIsMap ? qsTr("PFD") : qsTr("Map")
+            onClicked:              _pipView._swapPip()
         }
 
         FlyViewWidgetLayer {
