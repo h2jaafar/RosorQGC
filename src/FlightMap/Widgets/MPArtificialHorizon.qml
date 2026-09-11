@@ -81,11 +81,16 @@ Item {
 
                 var cx = width / 2
                 var cy = height / 2
-                var longHalf  = root.width * 0.27
-                var shortHalf = root.width * 0.15
+
+                // Bar lengths come off the view HEIGHT, not its width. MP's HUD
+                // is near enough square; this pane is closer to 2:1, so scaling
+                // horizontal geometry by width stretched the ladder to roughly
+                // twice the length it should be and ran it under the tapes.
+                var longHalf  = root.height * 0.146
+                var shortHalf = root.height * 0.082
 
                 ctx.strokeStyle = "white"
-                ctx.lineWidth   = 3
+                ctx.lineWidth   = Math.max(1, root.height * 0.0079)
 
                 for (var deg = -40; deg <= 40; deg += 5) {
                     if (deg === 0) {

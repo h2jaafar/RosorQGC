@@ -101,23 +101,28 @@ Rectangle {
 
                 var cx = width / 2
                 var cy = height / 2
-                var r  = Math.min(width, height) * 0.40
+
+                // Geometry is proportional to HEIGHT throughout: MP's HUD is
+                // near enough square while this pane is closer to 2:1, so
+                // anything scaled by width comes out stretched sideways.
+                var r  = height * 0.323
                 if (r <= 0) {
                     return
                 }
 
                 ctx.strokeStyle = "white"
-                ctx.lineWidth   = 2
+                ctx.lineWidth   = Math.max(1, height * 0.0063)
 
+                // A half dome, ends meeting the horizon line, as MP draws it.
                 ctx.beginPath()
-                ctx.arc(cx, cy, r, -Math.PI / 2 - Math.PI / 3, -Math.PI / 2 + Math.PI / 3)
+                ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI)
                 ctx.stroke()
 
                 var marks = [0, -10, 10, -20, 20, -30, 30, -45, 45, -60, 60]
                 for (var i = 0; i < marks.length; i++) {
                     var a     = marks[i]
                     var theta = (-90 + a) * Math.PI / 180
-                    var len   = (a === 0) ? 12 : ((Math.abs(a) >= 30) ? 10 : 6)
+                    var len   = height * 0.038
 
                     ctx.beginPath()
                     ctx.moveTo(cx + r * Math.cos(theta), cy + r * Math.sin(theta))
@@ -142,16 +147,19 @@ Rectangle {
 
                 var cx = width / 2
                 var cy = height / 2
-                var r  = Math.min(width, height) * 0.40
+                var r  = height * 0.323
                 if (r <= 0) {
                     return
                 }
 
+                var halfW = height * 0.022
+                var tall  = height * 0.035
+
                 ctx.fillStyle = "#ff0000"
                 ctx.beginPath()
-                ctx.moveTo(cx, cy - r + 2)
-                ctx.lineTo(cx - 7, cy - r - 11)
-                ctx.lineTo(cx + 7, cy - r - 11)
+                ctx.moveTo(cx, cy - r + (height * 0.006))
+                ctx.lineTo(cx - halfW, cy - r - tall)
+                ctx.lineTo(cx + halfW, cy - r - tall)
                 ctx.closePath()
                 ctx.fill()
             }
@@ -175,29 +183,34 @@ Rectangle {
 
                 ctx.lineCap = "round"
 
+                // All offsets are fractions of HEIGHT so the symbol keeps MP's
+                // proportions however wide the pane is.
+                var outer = height * 0.38     // red side bars, far end
+                var inner = height * 0.22     // red side bars, near end
+
                 ctx.strokeStyle = "#ff0000"
-                ctx.lineWidth   = 4
+                ctx.lineWidth   = Math.max(2, height * 0.0127)
                 ctx.beginPath()
-                ctx.moveTo(width * 0.05, cy)
-                ctx.lineTo(width * 0.21, cy)
-                ctx.moveTo(width * 0.79, cy)
-                ctx.lineTo(width * 0.95, cy)
+                ctx.moveTo(cx - outer, cy)
+                ctx.lineTo(cx - inner, cy)
+                ctx.moveTo(cx + inner, cy)
+                ctx.lineTo(cx + outer, cy)
                 ctx.stroke()
 
                 ctx.strokeStyle = "#008000"
-                ctx.lineWidth   = 3
+                ctx.lineWidth   = Math.max(2, height * 0.0095)
                 ctx.beginPath()
-                ctx.moveTo(cx - width * 0.12, cy)
-                ctx.lineTo(cx + width * 0.12, cy)
+                ctx.moveTo(cx - height * 0.12, cy)
+                ctx.lineTo(cx + height * 0.12, cy)
                 ctx.stroke()
 
                 ctx.strokeStyle = "#ff0000"
-                ctx.lineWidth   = 5
+                ctx.lineWidth   = Math.max(2, height * 0.0158)
                 ctx.lineJoin    = "round"
                 ctx.beginPath()
-                ctx.moveTo(cx - width * 0.12, cy + height * 0.075)
+                ctx.moveTo(cx - height * 0.133, cy + height * 0.063)
                 ctx.lineTo(cx, cy)
-                ctx.lineTo(cx + width * 0.12, cy + height * 0.075)
+                ctx.lineTo(cx + height * 0.133, cy + height * 0.063)
                 ctx.stroke()
             }
         }
