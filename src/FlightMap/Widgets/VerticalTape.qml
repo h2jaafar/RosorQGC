@@ -24,6 +24,11 @@ Rectangle {
     /// altitude legitimately goes below the home point.
     property real   minValue:       -Infinity
 
+    /// Label sizes, so the tape stays legible when the PFD is shown as a small
+    /// PipView thumbnail rather than full screen.
+    property real   labelPointSize: ScreenTools.smallFontPointSize
+    property real   valuePointSize: ScreenTools.defaultFontPointSize
+
     property bool   _valid:         !isNaN(value) && isFinite(value)
     property real   _value:         _valid ? value : 0
     // Tick nearest the current value; the window is drawn either side of it.
@@ -35,7 +40,7 @@ Rectangle {
         anchors.topMargin:        1
         anchors.horizontalCenter: parent.horizontalCenter
         text:                     root.caption
-        font.pointSize:           ScreenTools.smallFontPointSize
+        font.pointSize:           root.labelPointSize
         color:                    root.textColor
         z:                        2
     }
@@ -73,7 +78,7 @@ Rectangle {
                     anchors.leftMargin:     root.boxOnRight ? ScreenTools.defaultFontPixelWidth * 1.5 : 0
                     anchors.rightMargin:    root.boxOnRight ? 0 : ScreenTools.defaultFontPixelWidth * 1.5
                     text:                   tickValue.toString()
-                    font.pointSize:         ScreenTools.smallFontPointSize
+                    font.pointSize:         root.labelPointSize
                     color:                  root.textColor
                 }
             }
@@ -105,7 +110,7 @@ Rectangle {
             anchors.centerIn: parent
             text:             root._valid ? root._value.toFixed(root._value < 100 ? 1 : 0) : qsTr("--")
             color:            root.textColor
-            font.pointSize:   ScreenTools.defaultFontPointSize
+            font.pointSize:   root.valuePointSize
         }
     }
 }

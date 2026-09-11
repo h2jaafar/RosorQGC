@@ -49,9 +49,16 @@ Rectangle {
     // The Lua treats anything under DIST_MIN_M as "no reading", never ground at 0 m.
     property bool _radarValid: !isNaN(_radarAlt) && isFinite(_radarAlt) && _radarAlt >= 0.2
 
-    readonly property real _tapeWidth:  ScreenTools.defaultFontPixelWidth * 7
-    readonly property real _headingH:   ScreenTools.defaultFontPixelHeight * 1.6
-    readonly property real _radarH:     ScreenTools.defaultFontPixelHeight * 1.6
+    // Also used as a PipView thumbnail, where the pane is only ~144px tall. Fixed
+    // strip heights ate the whole pane there and left nothing for the horizon, so
+    // the chrome scales with the available height and the labels shrink with it.
+    readonly property bool _compact:    height < ScreenTools.defaultFontPixelHeight * 9
+    readonly property real _chromeFont: _compact ? ScreenTools.smallFontPointSize * 0.85
+                                                 : ScreenTools.smallFontPointSize
+    readonly property real _tapeWidth:  _compact ? ScreenTools.defaultFontPixelWidth * 4.5
+                                                 : ScreenTools.defaultFontPixelWidth * 7
+    readonly property real _headingH:   Math.min(ScreenTools.defaultFontPixelHeight * 1.6, height * 0.16)
+    readonly property real _radarH:     Math.min(ScreenTools.defaultFontPixelHeight * 1.6, height * 0.16)
     readonly property color _boxBg:     Qt.rgba(0, 0, 0, 0.75)
     readonly property color _tapeBg:    Qt.rgba(0, 0, 0, 0.45)
     readonly property color _lineColor: "#ffffff"
@@ -172,6 +179,8 @@ Rectangle {
         tickStep:           5
         pixelsPerUnit:      ScreenTools.defaultFontPixelHeight / 2.5
         boxOnRight:         true
+        labelPointSize:     root._chromeFont
+        valuePointSize:     root._compact ? root._chromeFont : ScreenTools.defaultFontPointSize
         tapeColor:          root._tapeBg
         boxColor:           root._boxBg
         textColor:          root._lineColor
@@ -189,6 +198,8 @@ Rectangle {
         tickStep:           5
         pixelsPerUnit:      ScreenTools.defaultFontPixelHeight / 2.5
         boxOnRight:         false
+        labelPointSize:     root._chromeFont
+        valuePointSize:     root._compact ? root._chromeFont : ScreenTools.defaultFontPointSize
         tapeColor:          root._tapeBg
         boxColor:           root._boxBg
         textColor:          root._lineColor
@@ -201,6 +212,7 @@ Rectangle {
         anchors.rightMargin:    2
         anchors.verticalCenter: horizonArea.verticalCenter
         anchors.verticalCenterOffset: ScreenTools.defaultFontPixelHeight * 1.6
+        visible:                !root._compact
         text:                   (root._climbRate >= 0 ? "+" : "") + root._climbRate.toFixed(1)
         font.pointSize:         ScreenTools.smallFontPointSize
         color:                  root._lineColor
@@ -258,7 +270,7 @@ Rectangle {
                             if (h === 270) return qsTr("W")
                             return h.toString()
                         }
-                        font.pointSize: ScreenTools.smallFontPointSize
+                        font.pointSize: root._chromeFont
                         color:          root._lineColor
                     }
                 }
@@ -279,7 +291,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text:             Math.round(((root._heading % 360) + 360) % 360) + "°"
                 color:            root._lineColor
-                font.pointSize:   ScreenTools.smallFontPointSize
+                font.pointSize:   root._chromeFont
             }
         }
     }
@@ -300,13 +312,13 @@ Rectangle {
             QGCLabel {
                 anchors.verticalCenter: parent.verticalCenter
                 text:                   qsTr("RDR")
-                font.pointSize:         ScreenTools.smallFontPointSize
+                font.pointSize:         root._chromeFont
                 color:                  root._radarColor
             }
             QGCLabel {
                 anchors.verticalCenter: parent.verticalCenter
                 text:                   root._radarValid ? root._radarAlt.toFixed(1) + qsTr(" m") : qsTr("--")
-                font.pointSize:         ScreenTools.defaultFontPointSize
+                font.pointSize:         root._compact ? root._chromeFont : ScreenTools.defaultFontPointSize
                 color:                  root._radarValid ? root._radarColor : root._lineColor
             }
             QGCLabel {
@@ -314,14 +326,14 @@ Rectangle {
                 text:                   qsTr("AGL")
                 font.pointSize:         ScreenTools.smallFontPointSize
                 color:                  root._lineColor
-                visible:                root._aglValid
+                visible:                root._aglValid && !root._compact
             }
             QGCLabel {
                 anchors.verticalCenter: parent.verticalCenter
                 text:                   root._agl.toFixed(1) + qsTr(" m")
                 font.pointSize:         ScreenTools.defaultFontPointSize
                 color:                  root._lineColor
-                visible:                root._aglValid
+                visible:                root._aglValid && !root._compact
             }
         }
     }
