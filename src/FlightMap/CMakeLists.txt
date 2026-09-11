@@ -32,11 +32,13 @@ qt_add_qml_module(FlightMapModule
         Widgets/IntegratedCompassAttitude.qml
         Widgets/MapFitFunctions.qml
         Widgets/PhotoVideoControl.qml
+        Widgets/PrimaryFlightDisplay.qml
         Widgets/QGCArtificialHorizon.qml
         Widgets/QGCAttitudeWidget.qml
         Widgets/QGCCompassWidget.qml
         Widgets/QGCPitchIndicator.qml
         Widgets/VerticalCompassAttitude.qml
+        Widgets/VerticalTape.qml
         FlightMap.qml
         MapScale.qml
     NO_PLUGIN
