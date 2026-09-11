@@ -463,7 +463,22 @@ void BluetoothConfiguration::startScan()
         _localDevice->powerOn();
     }
 
-    _deviceList.clear();
+    // getAllPairedDevices() filters _deviceList by pairing status rather than
+    // enumerating the adapter's bond list, so wiping the list outright drops the
+    // pilot's already-paired radio out of "Known Devices" until an over-the-air
+    // inquiry happens to find it again -- and a radio that isn't advertising as
+    // discoverable may never be found. Keep the paired entries across a rescan.
+    if (_localDevice && _localDevice->isValid()) {
+        QList<QBluetoothDeviceInfo> pairedEntries;
+        for (const QBluetoothDeviceInfo &known : std::as_const(_deviceList)) {
+            if (_localDevice->pairingStatus(known.address()) != QBluetoothLocalDevice::Unpaired) {
+                pairedEntries.append(known);
+            }
+        }
+        _deviceList = pairedEntries;
+    } else {
+        _deviceList.clear();
+    }
     _updateDeviceList();
 
     if (_mode == BluetoothMode::ModeLowEnergy) {
@@ -686,6 +701,15 @@ void BluetoothConfiguration::_onDiscoveryErrorOccurred(QBluetoothDeviceDiscovery
     }
 
     qCWarning(BluetoothConfigurationLog) << "Bluetooth discovery error:" << error << errorString;
+
+    // Stopping an inquiry that has already finished reports InputOutputError
+    // ("Discovery cannot be stopped") on Android. Discovery has ended either way,
+    // so log it but don't put a modal error in front of the pilot -- it fires on
+    // the very first scan after the Bluetooth permission is granted.
+    if ((error == QBluetoothDeviceDiscoveryAgent::InputOutputError) && !scanning()) {
+        return;
+    }
+
     emit errorOccurred(errorString);
 }
 

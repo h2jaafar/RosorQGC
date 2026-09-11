@@ -13,8 +13,10 @@ import QGroundControl.FlightMap
 // them.
 Rectangle {
     id:     root
-    width:  ScreenTools.defaultFontPixelHeight * 22
-    height: ScreenTools.defaultFontPixelHeight * 13
+    // Sits in a RowLayout beside TelemetryValuesBar, so it has to leave room for
+    // it rather than overrunning it.
+    width:  ScreenTools.defaultFontPixelHeight * 17
+    height: ScreenTools.defaultFontPixelHeight * 11
     color:  QGroundControl.globalPalette.window
     radius: ScreenTools.defaultFontPixelHeight / 4
 
@@ -166,6 +168,7 @@ Rectangle {
         anchors.left:       parent.left
         width:              root._tapeWidth
         value:              root._groundSpeed
+        minValue:           0
         tickStep:           5
         pixelsPerUnit:      ScreenTools.defaultFontPixelHeight / 2.5
         boxOnRight:         true
@@ -235,7 +238,7 @@ Rectangle {
                     y:      0
                     width:  ScreenTools.defaultFontPixelWidth * 4
                     height: headingStrip.height
-                    visible: Math.abs(delta) < 50
+                    visible: Math.abs(delta) < 40
 
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter

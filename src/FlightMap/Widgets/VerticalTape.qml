@@ -19,6 +19,11 @@ Rectangle {
     property color  textColor:      "white"
     property string caption:        ""
 
+    /// Lower bound for the scale. Groundspeed can't go negative, so its tape
+    /// shouldn't draw -5/-10 ticks; altitude is left unbounded because relative
+    /// altitude legitimately goes below the home point.
+    property real   minValue:       -Infinity
+
     property bool   _valid:         !isNaN(value) && isFinite(value)
     property real   _value:         _valid ? value : 0
     // Tick nearest the current value; the window is drawn either side of it.
@@ -49,7 +54,8 @@ Rectangle {
                 y:       centerY - (height / 2)
                 width:   root.width
                 height:  ScreenTools.defaultFontPixelHeight
-                visible: root._valid && centerY > -height && centerY < root.height + height
+                visible: root._valid && tickValue >= root.minValue &&
+                         centerY > -height && centerY < root.height + height
 
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
