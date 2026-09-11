@@ -98,6 +98,19 @@ jobs:
           fetch-depth: 1
           fetch-tags: true
 
+      - name: Write signing keystore
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set - the APK will be unsigned and cannot be installed as an update"
+            exit 0
+          fi
+          mkdir -p deploy/android
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "${QT_ANDROID_KEYSTORE_PATH}"
+          echo "Wrote keystore ($(wc -c < "${QT_ANDROID_KEYSTORE_PATH}") bytes)"
+
       - name: Get build config
         id: config
         uses: ./.github/actions/build-config
