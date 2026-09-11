@@ -75,6 +75,11 @@ Item {
         toolbar.dropMainStatusIndicatorTool();
     }
 
+    /// Show a critical vehicle message in the toolbar banner.
+    function showVehicleMessage(message) {
+        toolbar.showVehicleMessage(message);
+    }
+
     QGCToolInsets {
         id:                     _toolInsets
         topEdgeLeftInset:       toolbar.height
@@ -327,6 +332,7 @@ Item {
         onToggleParameterFavorites: _showParameterFavoritesPanel = !_showParameterFavoritesPanel
         onShowMissionQuickVerify: openMissionQuickVerify()
         onShowObstacleProfile: openObstacleProfile()
+        onReviewVehicleMessages: dropMainStatusIndicatorTool()
     }
 
     function openObstacleProfile() {

@@ -325,21 +325,23 @@ Item {
                 anchors.bottom:         parent.bottom
                 spacing:                0
 
+                // Voltage reads first and large: pilots judge a pack by its resting
+                // voltage, and percent is only the autopilot's estimate of it.
                 QGCLabel {
                     Layout.alignment:       Qt.AlignHCenter
                     verticalAlignment:      Text.AlignVCenter
                     color:                  qgcPal.windowTransparentText
-                    text:                   getBatteryPercentageText()
-                    font.pointSize:         _showBoth ? ScreenTools.defaultFontPointSize : ScreenTools.mediumFontPointSize
-                    visible:                _showBoth || _showPercentage
+                    text:                   getBatteryVoltageText()
+                    font.pointSize:         ScreenTools.mediumFontPointSize
+                    visible:                _showBoth || _showVoltage
                 }
 
                 QGCLabel {
                     Layout.alignment:       Qt.AlignHCenter
                     font.pointSize:         _showBoth ? ScreenTools.defaultFontPointSize : ScreenTools.mediumFontPointSize
                     color:                  qgcPal.windowTransparentText
-                    text:                   getBatteryVoltageText()
-                    visible:                _showBoth || _showVoltage
+                    text:                   getBatteryPercentageText()
+                    visible:                _showBoth || _showPercentage
                 }
             }
         }

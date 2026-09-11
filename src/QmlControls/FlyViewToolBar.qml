@@ -25,11 +25,17 @@ Item {
     signal toggleParameterFavorites()
     signal showMissionQuickVerify()
     signal showObstacleProfile()
+    signal reviewVehicleMessages()
     property bool   _fieldModeEnabled:  QGroundControl.settingsManager.appSettings.fieldModeEnabled.value
     property bool   _modernHudEnabled:  QGroundControl.settingsManager.appSettings.modernHudEnabled.value
 
     function dropMainStatusIndicatorTool() {
         mainStatusIndicator.dropMainStatusIndicator();
+    }
+
+    /// Show a critical vehicle message in the toolbar instead of a popup.
+    function showVehicleMessage(message) {
+        vehicleMessageBanner.show(message);
     }
 
     QGCPalette { id: qgcPal }
@@ -166,6 +172,16 @@ Item {
                     utmspSliderTrigger:         control.utmspSliderTrigger
                     messageDisplay:             guidedActionMessageDisplay
                     visible:                    !_fieldModeEnabled
+                }
+
+                // Confirming a guided action is a deliberate act and owns the
+                // centre of the bar while it is up; the banner waits its turn.
+                VehicleMessageBanner {
+                    id:                 vehicleMessageBanner
+                    anchors.fill:       parent
+                    anchors.margins:    ScreenTools.defaultFontPixelHeight * 0.15
+                    visible:            !guidedActionConfirm.visible
+                    onReviewRequested:  control.reviewVehicleMessages()
                 }
             }
 

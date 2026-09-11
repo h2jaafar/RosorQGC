@@ -242,6 +242,7 @@ qt_add_qml_module(QGroundControlControlsModule
         PlanViewToolBar.qml
         RemoteIDIndicatorPage.qml
         SignalStrength.qml
+        VehicleMessageBanner.qml
         VehicleMessageList.qml
 
         # src/QtLocationPlugin/QMLControl/

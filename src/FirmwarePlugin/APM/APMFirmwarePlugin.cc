@@ -657,6 +657,11 @@ const QVariantList &APMFirmwarePlugin::toolIndicators(const Vehicle *vehicle)
         // First call the base class to get the standard QGC list
         _toolIndicatorList = FirmwarePlugin::toolIndicators(vehicle);
 
+        // Rosor's status bar does not carry the telemetry link indicator. The
+        // link either carries MAVLink or it does not, and MainStatusIndicator
+        // already says so in words; the RSSI bars only crowd the bar.
+        _toolIndicatorList.removeAll(QVariant::fromValue(QUrl::fromUserInput("qrc:/qml/QGroundControl/Toolbar/TelemetryRSSIIndicator.qml")));
+
         // Add the forwarding support indicator
         _toolIndicatorList.append(QVariant::fromValue(QUrl::fromUserInput("qrc:/qml/QGroundControl/FirmwarePlugin/APM/APMSupportForwardingIndicator.qml")));
     }

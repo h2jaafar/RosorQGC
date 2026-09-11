@@ -433,6 +433,15 @@ ApplicationWindow {
     //-- Critical Vehicle Message Popup
 
     function showCriticalVehicleMessage(message) {
+        if (flyView.visible && !QGroundControl.videoManager.fullScreen) {
+            // On the fly view the message goes into the toolbar banner. A popup
+            // over the map covers the one thing the pilot is watching, and a
+            // standing fault re-opens it every few seconds. The drawer is left
+            // alone deliberately: the banner does not need the screen, so a new
+            // message must not shut the message list the pilot is reading.
+            flyView.showVehicleMessage(message)
+            return
+        }
         closeIndicatorDrawer()
         if (criticalVehicleMessagePopup.visible || QGroundControl.videoManager.fullScreen) {
             // We received additional warning message while an older warning message was still displayed.
