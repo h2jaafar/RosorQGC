@@ -51,6 +51,7 @@ qt_add_qml_module(FlyViewModule
         MissionQuickVerifyDialog.qml
         ObstacleProfilePopup.qml
         ObstacleProfileView.qml
+        ObstacleTerrainProfile.qml
         MultiRotorChecklist.qml
         MultiVehicleList.qml
         ModernHud.qml

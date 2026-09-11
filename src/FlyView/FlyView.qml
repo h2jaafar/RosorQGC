@@ -240,15 +240,12 @@ Item {
             return NaN
         }
 
-        ObstacleProfileView {
+        ObstacleTerrainProfile {
             anchors.fill: parent
             anchors.margins: ScreenTools.defaultFontPixelWidth * 0.3
             vehicle: _activeVehicle
-            maxRangeM: obstacleProfilePopup.maxRangeM
-            viewMode: obstacleProfilePopup.viewMode
-            showRangeLabels: false
-            showObstacleLabels: false
-            showModeLabel: false
+            showGrid: true
+            showLabels: true
             labelFontPointSize: ScreenTools.smallFontPointSize
         }
 
