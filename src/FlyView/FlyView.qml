@@ -106,6 +106,7 @@ Item {
         FlyViewPfdPane {
             id:         pfdControl
             pipView:    _pipView
+            topInset:   toolbar.height
             visible:    !QGroundControl.videoManager.hasVideo
         }
 
@@ -117,10 +118,12 @@ Item {
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
             item1:                  mapControl
             item2:                  QGroundControl.videoManager.hasVideo ? videoControl : pfdControl
-            show:                   QGroundControl.videoManager.hasVideo
-                                        ? (!QGroundControl.videoManager.fullScreen &&
-                                           (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState))
-                                        : (pfdControl.pipState.state === pfdControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
+            // No thumbnail for the PFD pane: PipView anchors bottom-left, which is
+            // where the obstacle profile already lives, and a 16:9 thumbnail of a
+            // flight display is unreadable anyway. The top-right tab does the
+            // swapping instead, so one of map/PFD fills the view and the other hides.
+            show:                   QGroundControl.videoManager.hasVideo && !QGroundControl.videoManager.fullScreen &&
+                                        (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
             property real leftEdgeBottomInset: visible ? width + anchors.margins : 0

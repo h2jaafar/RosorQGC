@@ -9,6 +9,52 @@ QGC_LOGGING_CATEGORY(AndroidInterfaceLog, "qgc.android.src.androidinterface")
 namespace AndroidInterface
 {
 
+QList<QPair<QString, QString>> getBondedBluetoothDevices()
+{
+    QList<QPair<QString, QString>> devices;
+
+    const QJniObject adapter = QJniObject::callStaticObjectMethod(
+        "android/bluetooth/BluetoothAdapter", "getDefaultAdapter",
+        "()Landroid/bluetooth/BluetoothAdapter;");
+    if (!adapter.isValid()) {
+        (void) cleanJavaException();
+        qCWarning(AndroidInterfaceLog) << "No default Bluetooth adapter";
+        return devices;
+    }
+
+    const QJniObject bonded = adapter.callObjectMethod("getBondedDevices", "()Ljava/util/Set;");
+    if (!bonded.isValid()) {
+        // Thrown rather than returned when BLUETOOTH_CONNECT has not been granted.
+        (void) cleanJavaException();
+        return devices;
+    }
+
+    const QJniObject iterator = bonded.callObjectMethod("iterator", "()Ljava/util/Iterator;");
+    if (!iterator.isValid()) {
+        (void) cleanJavaException();
+        return devices;
+    }
+
+    while (iterator.callMethod<jboolean>("hasNext")) {
+        const QJniObject device = iterator.callObjectMethod("next", "()Ljava/lang/Object;");
+        if (!device.isValid()) {
+            continue;
+        }
+
+        const QJniObject address = device.callObjectMethod("getAddress", "()Ljava/lang/String;");
+        if (!address.isValid()) {
+            continue;
+        }
+
+        const QJniObject name = device.callObjectMethod("getName", "()Ljava/lang/String;");
+        devices.append(qMakePair(address.toString(), name.isValid() ? name.toString() : QString()));
+    }
+
+    (void) cleanJavaException();
+
+    return devices;
+}
+
 bool cleanJavaException()
 {
     QJniEnvironment jniEnv;

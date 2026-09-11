@@ -2,6 +2,9 @@
 
 #include "QGCLoggingCategory.h"
 #include "DeviceInfo.h"
+#ifdef Q_OS_ANDROID
+#include "AndroidInterface.h"
+#endif
 
 #include <QtBluetooth/QBluetoothHostInfo>
 #include <QtBluetooth/QBluetoothUuid>
@@ -464,10 +467,11 @@ void BluetoothConfiguration::startScan()
     }
 
     // getAllPairedDevices() filters _deviceList by pairing status rather than
-    // enumerating the adapter's bond list, so wiping the list outright drops the
-    // pilot's already-paired radio out of "Known Devices" until an over-the-air
-    // inquiry happens to find it again -- and a radio that isn't advertising as
-    // discoverable may never be found. Keep the paired entries across a rescan.
+    // enumerating the adapter's bond list, so an already-paired radio only ever
+    // reached "Known Devices" if an over-the-air inquiry happened to find it --
+    // and a Siyi ground unit is bonded but does not answer inquiry, so it never
+    // showed at all. Keep paired entries across a rescan, then seed the list from
+    // the adapter's actual bonds so they are listed whether or not they respond.
     if (_localDevice && _localDevice->isValid()) {
         QList<QBluetoothDeviceInfo> pairedEntries;
         for (const QBluetoothDeviceInfo &known : std::as_const(_deviceList)) {
@@ -479,6 +483,7 @@ void BluetoothConfiguration::startScan()
     } else {
         _deviceList.clear();
     }
+    _seedBondedDevices();
     _updateDeviceList();
 
     if (_mode == BluetoothMode::ModeLowEnergy) {
@@ -488,6 +493,38 @@ void BluetoothConfiguration::startScan()
     }
 
     emit scanningChanged();
+}
+
+void BluetoothConfiguration::_seedBondedDevices()
+{
+#ifdef Q_OS_ANDROID
+    const QList<QPair<QString, QString>> bonded = AndroidInterface::getBondedBluetoothDevices();
+
+    for (const QPair<QString, QString> &entry : bonded) {
+        const QBluetoothAddress address(entry.first);
+        if (address.isNull()) {
+            continue;
+        }
+
+        bool alreadyKnown = false;
+        for (const QBluetoothDeviceInfo &known : std::as_const(_deviceList)) {
+            if (known.address() == address) {
+                alreadyKnown = true;
+                break;
+            }
+        }
+        if (alreadyKnown) {
+            continue;
+        }
+
+        QBluetoothDeviceInfo info(address, entry.second, 0);
+        // A bond carries no core-configuration flags, and _matchesMode() filters on
+        // them, so mark it Classic: Android only bonds BR/EDR this way and the Siyi
+        // ground units are SPP.
+        info.setCoreConfigurations(QBluetoothDeviceInfo::BaseRateCoreConfiguration);
+        _deviceList.append(info);
+    }
+#endif
 }
 
 void BluetoothConfiguration::stopScan()

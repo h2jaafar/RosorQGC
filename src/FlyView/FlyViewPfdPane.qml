@@ -15,6 +15,10 @@ Item {
     property Item pipView
     property Item pipState: pfdPipState
 
+    /// The pane fills the whole fly view, including the strip under the toolbar,
+    /// so the PFD is inset by the toolbar height to keep its heading strip visible.
+    property real topInset: 0
+
     PipState {
         id:      pfdPipState
         pipView: _root.pipView
@@ -22,6 +26,7 @@ Item {
     }
 
     PrimaryFlightDisplay {
-        anchors.fill: parent
+        anchors.fill:      parent
+        anchors.topMargin: _root.topInset
     }
 }

@@ -107,6 +107,10 @@ public:
 
     [[nodiscard]] static bool isBluetoothAvailable();
 
+    /// Adds the adapter's bonded devices to the discovery list so a paired radio
+    /// is listed even when it does not answer an inquiry. No-op off Android.
+    void _seedBondedDevices();
+
     // Known BLE UART-like service UUIDs
     static inline const QBluetoothUuid NORDIC_UART_SERVICE{QStringLiteral("6e400001-b5a3-f393-e0a9-e50e24dcca9e")};
     static inline const QBluetoothUuid NORDIC_UART_RX_CHAR{QStringLiteral("6e400003-b5a3-f393-e0a9-e50e24dcca9e")};
