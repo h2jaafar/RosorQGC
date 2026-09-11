@@ -75,7 +75,15 @@ runs:
       with:
         ndk-version: ${{ inputs.ndk-version }}
         add-to-path: false
-        local-cache: true
+        # Deliberately NOT cached. With local-cache on, this action persists the
+        # NDK to the Actions cache as a ~55-80 MiB entry against a real NDK of
+        # about 2.5 GB, and the truncated restore leaves a tree that still has
+        # build/cmake/android.toolchain.cmake but no
+        # toolchains/llvm/prebuilt/*/bin/clang. Configure then dies with "is not
+        # a full path to an existing compiler tool". It recurred on every run and
+        # deleting the entries by hand only bought one build each time. Fetching
+        # the NDK fresh costs a few minutes and always works.
+        local-cache: false
 
     - name: Update Android SDK / NDK / Tools
       shell: bash
