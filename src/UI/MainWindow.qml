@@ -481,7 +481,15 @@ ApplicationWindow {
             autoDismissTimer.stop()
             if (additionalCriticalMessagesReceived) {
                 additionalCriticalMessagesReceived = false
-                flyView.dropMainStatusIndicatorTool()
+                // Only drop the messages panel while the pilot is actually on the
+                // Fly view. A vehicle with a standing fault (bad compass, no GPS
+                // lock on the bench) repeats criticals every few seconds, and
+                // re-opening the panel on top of Settings or Plan made those pages
+                // impossible to use. The critical popup itself still shows on every
+                // view, so nothing is hidden.
+                if (flyView.visible) {
+                    flyView.dropMainStatusIndicatorTool()
+                }
             } else if (QGroundControl.multiVehicleManager.activeVehicle) {
                 QGroundControl.multiVehicleManager.activeVehicle.resetErrorLevelMessages()
             }

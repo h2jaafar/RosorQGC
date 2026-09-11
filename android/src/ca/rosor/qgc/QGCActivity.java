@@ -169,6 +169,34 @@ public class QGCActivity extends QtActivity {
      *
      * @return true if permissions are granted, false otherwise
      */
+    /**
+     * Sends the user to the All-files-access page so they can grant
+     * MANAGE_EXTERNAL_STORAGE. Only call this in response to an explicit user
+     * action -- for example turning on "save to SD card" -- never at startup.
+     */
+    public static void requestStoragePermissions() {
+        if (m_instance == null) {
+            Log.e(TAG, "Activity instance is null");
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            intent.setData(Uri.parse("package:" + m_instance.getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            m_instance.startActivity(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to open storage permission settings", e);
+            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            m_instance.startActivity(intent);
+        }
+    }
+
     public static boolean checkStoragePermissions() {
         if (m_instance == null) {
             Log.e(TAG, "Activity instance is null");
@@ -178,19 +206,16 @@ public class QGCActivity extends QtActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // Android 11+ (API 30+) requires MANAGE_EXTERNAL_STORAGE for full SD card access
             if (!Environment.isExternalStorageManager()) {
-                Log.i(TAG, "MANAGE_EXTERNAL_STORAGE not granted, requesting...");
-                try {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                    intent.setData(Uri.parse("package:" + m_instance.getPackageName()));
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    m_instance.startActivity(intent);
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to open storage permission settings", e);
-                    // Fallback to general settings
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    m_instance.startActivity(intent);
-                }
+                // Deliberately does NOT send the user to the All-files-access page.
+                // This runs from the AppSettings constructor at startup, so every
+                // pilot was thrown at a system screen granting read/modify/delete
+                // over the whole device before the app had even drawn -- for an
+                // optional convenience (logs on the SD card rather than internal
+                // storage) that the caller already falls back from cleanly, and
+                // which does nothing at all on a handheld with no removable card.
+                // requestStoragePermissions() below does the asking, for a caller
+                // that can tie it to an explicit user action.
+                Log.i(TAG, "MANAGE_EXTERNAL_STORAGE not granted; using internal storage");
                 return false;
             }
             Log.i(TAG, "MANAGE_EXTERNAL_STORAGE already granted");
