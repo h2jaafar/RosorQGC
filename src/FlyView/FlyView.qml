@@ -42,6 +42,9 @@ Item {
     property var    _guidedValueSlider:     guidedValueSlider
     property var    _widgetLayer:           widgetLayer
     property real   _toolsMargin:           ScreenTools.defaultFontPixelWidth * 0.75
+    // With no video the PFD is PipView's second pane, and the thumbnail goes
+    // top-left so it clears the obstacle profile in the bottom-left corner.
+    property bool   _pipAtTop:              !QGroundControl.videoManager.hasVideo
     property rect   _centerViewport:        Qt.rect(0, 0, width, height)
     property real   _rightPanelWidth:       ScreenTools.defaultFontPixelWidth * 30
     property var    _mapControl:            mapControl
@@ -77,6 +80,7 @@ Item {
         topEdgeLeftInset:       toolbar.height
         topEdgeCenterInset:     topEdgeLeftInset
         topEdgeRightInset:      topEdgeLeftInset
+        leftEdgeTopInset:       _pipView.leftEdgeTopInset
         leftEdgeBottomInset:    _pipView.leftEdgeBottomInset
         bottomEdgeLeftInset:    _pipView.bottomEdgeLeftInset
     }
@@ -113,21 +117,24 @@ Item {
         PipView {
             id:                     _pipView
             anchors.left:           parent.left
-            anchors.bottom:         parent.bottom
-            anchors.margins:        _toolsMargin
+            anchors.leftMargin:     _toolsMargin
+            anchors.top:            _pipAtTop ? parent.top : undefined
+            anchors.topMargin:      toolbar.height + _toolsMargin
+            anchors.bottom:         _pipAtTop ? undefined : parent.bottom
+            anchors.bottomMargin:   _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
             item1:                  mapControl
             item2:                  QGroundControl.videoManager.hasVideo ? videoControl : pfdControl
-            // No thumbnail for the PFD pane: PipView anchors bottom-left, which is
-            // where the obstacle profile already lives, and a 16:9 thumbnail of a
-            // flight display is unreadable anyway. The top-right tab does the
-            // swapping instead, so one of map/PFD fills the view and the other hides.
-            show:                   QGroundControl.videoManager.hasVideo && !QGroundControl.videoManager.fullScreen &&
-                                        (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
+            show:                   QGroundControl.videoManager.hasVideo
+                                        ? (!QGroundControl.videoManager.fullScreen &&
+                                           (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState))
+                                        : (pfdControl.pipState.state === pfdControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
-            property real leftEdgeBottomInset: visible ? width + anchors.margins : 0
-            property real bottomEdgeLeftInset: visible ? height + anchors.margins : 0
+            // Pushes the takeoff/return column below the thumbnail when it sits top-left.
+            property real leftEdgeTopInset:    (visible && _pipAtTop) ? height + anchors.topMargin : 0
+            property real leftEdgeBottomInset: (visible && !_pipAtTop) ? width + anchors.leftMargin : 0
+            property real bottomEdgeLeftInset: (visible && !_pipAtTop) ? height + anchors.bottomMargin : 0
         }
 
         // Tab to swap the primary flight display with the map. Hidden when a video
