@@ -62,14 +62,17 @@ Item {
             anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
             spacing:                ScreenTools.defaultFontPixelWidth
 
+            // Sized through Layout.preferred*: inside a RowLayout a plain
+            // width/height is overridden by the item's implicit size, which for
+            // an Image is the source's pixel size.
             QGCColoredImage {
-                Layout.alignment:   Qt.AlignVCenter
-                width:              ScreenTools.defaultFontPixelHeight
-                height:             width
-                sourceSize.height:  height
-                source:             "/res/VehicleMessages.png"
-                color:              qgcPal.alertText
-                fillMode:           Image.PreserveAspectFit
+                Layout.alignment:       Qt.AlignVCenter
+                Layout.preferredWidth:  ScreenTools.defaultFontPixelHeight
+                Layout.preferredHeight: Layout.preferredWidth
+                sourceSize.height:      ScreenTools.defaultFontPixelHeight
+                source:                 "/res/VehicleMessages.png"
+                color:                  qgcPal.alertText
+                fillMode:               Image.PreserveAspectFit
             }
 
             QGCLabel {
