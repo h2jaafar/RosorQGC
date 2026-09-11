@@ -55,8 +55,8 @@ Rectangle {
     readonly property bool _compact:    height < ScreenTools.defaultFontPixelHeight * 9
     readonly property real _chromeFont: _compact ? ScreenTools.smallFontPointSize * 0.85
                                                  : ScreenTools.smallFontPointSize
-    readonly property real _tapeWidth:  _compact ? ScreenTools.defaultFontPixelWidth * 4.5
-                                                 : ScreenTools.defaultFontPixelWidth * 7
+    readonly property real _tapeWidth:  _compact ? ScreenTools.defaultFontPixelWidth * 4
+                                                 : ScreenTools.defaultFontPixelWidth * 5
     readonly property real _headingH:   _compact ? 0 : ScreenTools.defaultFontPixelHeight * 1.6
     readonly property real _radarH:     _compact ? ScreenTools.defaultFontPixelHeight * 1.15
                                                  : ScreenTools.defaultFontPixelHeight * 1.6
@@ -77,93 +77,167 @@ Rectangle {
         anchors.right:  parent.right
         clip:           true
 
-        QGCArtificialHorizon {
+        MPArtificialHorizon {
             anchors.fill: parent
             rollAngle:    root._roll
             pitchAngle:   root._pitch
         }
 
-        QGCPitchIndicator {
-            id:                     pitchLadder
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.horizontalCenter: parent.horizontalCenter
-            size:                   Math.min(parent.width, parent.height) * 0.75
-            pitchAngle:             root._pitch
-            rollAngle:              root._roll
-            color:                  Qt.rgba(0, 0, 0, 0)
-        }
-
-        // Fixed aircraft reference symbol
-        Item {
-            anchors.centerIn: parent
-            width:  ScreenTools.defaultFontPixelWidth * 12
-            height: ScreenTools.defaultFontPixelHeight / 2
-
-            Rectangle {
-                anchors.left:           parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                width:                  parent.width * 0.35
-                height:                 2
-                color:                  "#ffcc00"
-            }
-            Rectangle {
-                anchors.right:          parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                width:                  parent.width * 0.35
-                height:                 2
-                color:                  "#ffcc00"
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width:            3
-                height:           3
-                color:            "#ffcc00"
-            }
-        }
-
-        // Roll pointer against a fixed scale at the top of the horizon
+        // Roll scale turns with the aircraft and the pointer stays put, which is
+        // how MP draws it. Ticks only -- the angle is read from the numeral.
         Canvas {
-            id:           rollScale
-            anchors.fill: parent
+            id:              rollScale
+            anchors.fill:    parent
+            rotation:        -root._roll
+            transformOrigin: Item.Center
+            visible:         !root._compact
+
+            onWidthChanged:  requestPaint()
+            onHeightChanged: requestPaint()
+
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.reset()
+
                 var cx = width / 2
                 var cy = height / 2
-                var r  = Math.min(width, height) * 0.42
-                ctx.strokeStyle = root._lineColor
-                ctx.lineWidth   = 1
-                var marks = [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]
+                var r  = Math.min(width, height) * 0.40
+                if (r <= 0) {
+                    return
+                }
+
+                ctx.strokeStyle = "white"
+                ctx.lineWidth   = 2
+
+                ctx.beginPath()
+                ctx.arc(cx, cy, r, -Math.PI / 2 - Math.PI / 3, -Math.PI / 2 + Math.PI / 3)
+                ctx.stroke()
+
+                var marks = [0, -10, 10, -20, 20, -30, 30, -45, 45, -60, 60]
                 for (var i = 0; i < marks.length; i++) {
-                    var a   = (marks[i] - 90) * Math.PI / 180
-                    var len = (marks[i] % 30 === 0) ? 8 : 4
+                    var a     = marks[i]
+                    var theta = (-90 + a) * Math.PI / 180
+                    var len   = (a === 0) ? 12 : ((Math.abs(a) >= 30) ? 10 : 6)
+
                     ctx.beginPath()
-                    ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
-                    ctx.lineTo(cx + (r + len) * Math.cos(a), cy + (r + len) * Math.sin(a))
+                    ctx.moveTo(cx + r * Math.cos(theta), cy + r * Math.sin(theta))
+                    ctx.lineTo(cx + (r + len) * Math.cos(theta), cy + (r + len) * Math.sin(theta))
                     ctx.stroke()
                 }
             }
         }
 
+        // Fixed roll pointer at the apex of the scale.
         Canvas {
-            id:           rollPointer
-            anchors.fill: parent
-            property real rollAngle: root._roll
-            onRollAngleChanged: requestPaint()
+            id:              rollPointer
+            anchors.fill:    parent
+            visible:         !root._compact
+
+            onWidthChanged:  requestPaint()
+            onHeightChanged: requestPaint()
+
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.reset()
+
                 var cx = width / 2
                 var cy = height / 2
-                var r  = Math.min(width, height) * 0.42
-                var a  = (-rollAngle - 90) * Math.PI / 180
-                ctx.fillStyle = "#ffcc00"
+                var r  = Math.min(width, height) * 0.40
+                if (r <= 0) {
+                    return
+                }
+
+                ctx.fillStyle = "#ff0000"
                 ctx.beginPath()
-                ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
-                ctx.lineTo(cx + (r - 9) * Math.cos(a - 0.05), cy + (r - 9) * Math.sin(a - 0.05))
-                ctx.lineTo(cx + (r - 9) * Math.cos(a + 0.05), cy + (r - 9) * Math.sin(a + 0.05))
+                ctx.moveTo(cx, cy - r + 2)
+                ctx.lineTo(cx - 7, cy - r - 11)
+                ctx.lineTo(cx + 7, cy - r - 11)
                 ctx.closePath()
                 ctx.fill()
+            }
+        }
+
+        // Fixed aircraft symbol: red chevron with the green wing bar and the red
+        // side bars, as on MP's HUD.
+        Canvas {
+            id:              aircraftSymbol
+            anchors.fill:    parent
+
+            onWidthChanged:  requestPaint()
+            onHeightChanged: requestPaint()
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+
+                var cx = width / 2
+                var cy = height / 2
+
+                ctx.lineCap = "round"
+
+                ctx.strokeStyle = "#ff0000"
+                ctx.lineWidth   = 4
+                ctx.beginPath()
+                ctx.moveTo(width * 0.05, cy)
+                ctx.lineTo(width * 0.21, cy)
+                ctx.moveTo(width * 0.79, cy)
+                ctx.lineTo(width * 0.95, cy)
+                ctx.stroke()
+
+                ctx.strokeStyle = "#008000"
+                ctx.lineWidth   = 3
+                ctx.beginPath()
+                ctx.moveTo(cx - width * 0.12, cy)
+                ctx.lineTo(cx + width * 0.12, cy)
+                ctx.stroke()
+
+                ctx.strokeStyle = "#ff0000"
+                ctx.lineWidth   = 5
+                ctx.lineJoin    = "round"
+                ctx.beginPath()
+                ctx.moveTo(cx - width * 0.12, cy + height * 0.075)
+                ctx.lineTo(cx, cy)
+                ctx.lineTo(cx + width * 0.12, cy + height * 0.075)
+                ctx.stroke()
+            }
+        }
+
+        // Roll above the pointer, pitch below the chevron.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top:              parent.top
+            anchors.topMargin:        2
+            visible:                  !root._compact
+            color:                    Qt.rgba(0, 0, 0, 0.62)
+            width:                    rollValue.implicitWidth + ScreenTools.defaultFontPixelWidth
+            height:                   rollValue.implicitHeight + 2
+
+            QGCLabel {
+                id:               rollValue
+                anchors.centerIn: parent
+                text:             Math.round(root._roll) + "°"
+                color:            root._lineColor
+                font.pointSize:   ScreenTools.smallFontPointSize
+                font.family:      "Arial"
+            }
+        }
+
+        Rectangle {
+            anchors.horizontalCenter:     parent.horizontalCenter
+            anchors.verticalCenter:       parent.verticalCenter
+            anchors.verticalCenterOffset: parent.height * 0.14
+            visible:                      !root._compact
+            color:                        Qt.rgba(0, 0, 0, 0.62)
+            width:                        pitchValue.implicitWidth + ScreenTools.defaultFontPixelWidth
+            height:                       pitchValue.implicitHeight + 2
+
+            QGCLabel {
+                id:               pitchValue
+                anchors.centerIn: parent
+                text:             (root._pitch >= 0 ? "+" : "") + Math.round(root._pitch) + "°"
+                color:            root._lineColor
+                font.pointSize:   ScreenTools.smallFontPointSize
+                font.family:      "Arial"
             }
         }
     }

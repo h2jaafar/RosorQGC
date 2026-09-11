@@ -31,6 +31,7 @@ qt_add_qml_module(FlightMapModule
         Widgets/IntegratedAttitudeIndicator.qml
         Widgets/IntegratedCompassAttitude.qml
         Widgets/MapFitFunctions.qml
+        Widgets/MPArtificialHorizon.qml
         Widgets/PhotoVideoControl.qml
         Widgets/PrimaryFlightDisplay.qml
         Widgets/QGCArtificialHorizon.qml
