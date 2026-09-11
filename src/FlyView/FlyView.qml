@@ -123,6 +123,8 @@ Item {
             anchors.bottom:         _pipAtTop ? undefined : parent.bottom
             anchors.bottomMargin:   _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
+            // A flight display needs more pixels than a video thumbnail to read.
+            _pipSize:               parent.width * (_pipAtTop ? 0.28 : 0.2)
             item1:                  mapControl
             item2:                  QGroundControl.videoManager.hasVideo ? videoControl : pfdControl
             show:                   QGroundControl.videoManager.hasVideo

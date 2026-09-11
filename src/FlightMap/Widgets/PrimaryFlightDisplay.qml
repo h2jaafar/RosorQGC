@@ -57,8 +57,9 @@ Rectangle {
                                                  : ScreenTools.smallFontPointSize
     readonly property real _tapeWidth:  _compact ? ScreenTools.defaultFontPixelWidth * 4.5
                                                  : ScreenTools.defaultFontPixelWidth * 7
-    readonly property real _headingH:   Math.min(ScreenTools.defaultFontPixelHeight * 1.6, height * 0.16)
-    readonly property real _radarH:     Math.min(ScreenTools.defaultFontPixelHeight * 1.6, height * 0.16)
+    readonly property real _headingH:   _compact ? 0 : ScreenTools.defaultFontPixelHeight * 1.6
+    readonly property real _radarH:     _compact ? ScreenTools.defaultFontPixelHeight * 1.15
+                                                 : ScreenTools.defaultFontPixelHeight * 1.6
     readonly property color _boxBg:     Qt.rgba(0, 0, 0, 0.75)
     readonly property color _tapeBg:    Qt.rgba(0, 0, 0, 0.45)
     readonly property color _lineColor: "#ffffff"
@@ -170,6 +171,7 @@ Rectangle {
     // ------------------------------------------------------------ speed tape
     VerticalTape {
         id:                 speedTape
+        visible:            !root._compact
         anchors.top:        horizonArea.top
         anchors.bottom:     horizonArea.bottom
         anchors.left:       parent.left
@@ -190,6 +192,7 @@ Rectangle {
     // --------------------------------------------------------- altitude tape
     VerticalTape {
         id:                 altTape
+        visible:            !root._compact
         anchors.top:        horizonArea.top
         anchors.bottom:     horizonArea.bottom
         anchors.right:      parent.right
@@ -227,6 +230,7 @@ Rectangle {
         anchors.left:   parent.left
         anchors.right:  parent.right
         height:         root._headingH
+        visible:        !root._compact
         color:          root._tapeBg
 
         Item {
@@ -331,9 +335,8 @@ Rectangle {
             QGCLabel {
                 anchors.verticalCenter: parent.verticalCenter
                 text:                   root._agl.toFixed(1) + qsTr(" m")
-                font.pointSize:         ScreenTools.defaultFontPointSize
+                font.pointSize:         root._compact ? root._chromeFont : ScreenTools.defaultFontPointSize
                 color:                  root._lineColor
-                visible:                root._aglValid && !root._compact
             }
         }
     }
