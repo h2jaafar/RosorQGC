@@ -60,7 +60,7 @@ Item {
     /// True when the downward radar has locked onto the slung load instead of
     /// the ground: U3M flattens at about the tether length and is NOT ground
     /// range, so it must not be recorded as terrain or read as AGL.
-    readonly property bool _birdLocked: {
+    readonly property bool birdLocked: {
         _tick
         var u3 = _nf("U3M")
         return _valid(u3) && u3 >= root.u3mMinValidM &&
@@ -118,7 +118,7 @@ Item {
     // window behind us.
     function _record() {
         var u3 = _nf("U3M")
-        if (_valid(u3) && u3 >= root.u3mMinValidM && root._amsl !== 0 && !root._birdLocked) {
+        if (_valid(u3) && u3 >= root.u3mMinValidM && root._amsl !== 0 && !root.birdLocked) {
             var g = root._ground.slice()
             g.push({ s: root._sNow, amsl: root._amsl - u3 })
             while (g.length > root.maxHistory) g.shift()
@@ -364,7 +364,7 @@ Item {
             if (root._valid(u3) && u3 >= root.u3mMinValidM) {
                 // Locked onto the slung load this is the tether, not the
                 // ground -- say so rather than letting it read as AGL.
-                var u3Colour = root._birdLocked ? qgcPal.colorOrange : qgcPal.colorGreen
+                var u3Colour = root.birdLocked ? qgcPal.colorOrange : qgcPal.colorGreen
                 ctx.strokeStyle = u3Colour
                 ctx.lineWidth   = 1
                 ctx.setLineDash([1, 3])
@@ -372,7 +372,7 @@ Item {
                 ctx.setLineDash([])
                 if (root.showLabels) {
                     ctx.fillStyle = u3Colour
-                    ctx.fillText(root._birdLocked ? qsTr("payload %1m").arg(u3.toFixed(1))
+                    ctx.fillText(root.birdLocked ? qsTr("payload %1m").arg(u3.toFixed(1))
                                                   : (u3.toFixed(1) + "m"),
                                  ax + 4, YC(Y(-u3)) - 2)
                 }

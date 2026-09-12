@@ -299,6 +299,20 @@ Item {
                                                !isNaN(obstacleBand._closest) &&
                                                obstacleBand._closest <= radarParams.fwdTrigM
 
+        readonly property real _terrainAgl: (_activeVehicle && _activeVehicle.altitudeAboveTerr)
+                                                ? _activeVehicle.altitudeAboveTerr.rawValue
+                                                : NaN
+
+        readonly property string _aglText: {
+            if (!isNaN(obstacleBand._radarAlt) && !obstacleProfile.birdLocked) {
+                return qsTr("AGL %1 m · radar").arg(obstacleBand._radarAlt.toFixed(1))
+            }
+            if (!isNaN(obstacleBand._terrainAgl) && isFinite(obstacleBand._terrainAgl)) {
+                return qsTr("AGL %1 m · terrain").arg(obstacleBand._terrainAgl.toFixed(1))
+            }
+            return qsTr("AGL —")
+        }
+
         readonly property string _triggerText: {
             if (radarParams.avoidEnabled === false) {
                 return qsTr("AVOID OFF")
@@ -355,12 +369,15 @@ Item {
                     }
                 }
 
+                // Height above ground, always labelled with where it came
+                // from. The downward radar is authoritative EXCEPT when it is
+                // locked onto the slung load, where it reports the tether and
+                // not the ground; then fall back to the terrain height, the
+                // way ObstacleHUD's select_agl() falls back to GPS-SRTM.
                 QGCLabel {
-                    text:           isNaN(obstacleBand._radarAlt)
-                                        ? qsTr("RDR —")
-                                        : qsTr("RDR %1 m").arg(obstacleBand._radarAlt.toFixed(1))
+                    text:           obstacleBand._aglText
                     font.pointSize: ScreenTools.smallFontPointSize
-                    color:          "#8d959d"
+                    color:          obstacleProfile.birdLocked ? "#eecc44" : "#8d959d"
                 }
 
                 QGCLabel {
@@ -380,6 +397,7 @@ Item {
             anchors.bottom: parent.bottom
 
             ObstacleTerrainProfile {
+                id:                 obstacleProfile
                 anchors.fill:       parent
                 anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.3
                 vehicle:            _activeVehicle
