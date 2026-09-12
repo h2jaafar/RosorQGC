@@ -254,73 +254,130 @@ Item {
         fieldModeEnabled:   _fieldModeEnabled
     }
 
-    // Inline mini Obstacle Profile — always visible above the critical bar,
-    // semi-transparent. Tap to open the full popup with zoom/UI controls.
-    // Placed bottom-LEFT to avoid the compass widget on the right.
+    // Obstacle band: a full-width strip along the bottom, above the critical
+    // status bar. The closest-obstacle distance is the largest number on the
+    // screen because it is the one that decides whether to stop.
+    //
+    // No "inside trigger" state is drawn. The mockup had one, but nothing in
+    // the firmware or the named-value stream tells us the avoidance trigger
+    // distance, and a made-up threshold on a safety readout is worse than none.
     Rectangle {
-        id:                 obstacleProfileMini
-        anchors.left:       parent.left
-        anchors.bottom:     criticalStatusBar.top
-        anchors.leftMargin: ScreenTools.defaultFontPixelWidth
-        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.4
-        width:              ScreenTools.defaultFontPixelWidth * 26
-        height:             ScreenTools.defaultFontPixelHeight * 7
-        z:                  QGroundControl.zOrderTopMost
-        radius:             ScreenTools.defaultBorderRadius
-        color:              Qt.rgba(0, 0, 0, miniMouse.pressed ? 0.70 : 0.55)
-        border.color:       miniMouse.pressed ? Qt.rgba(1, 0.6, 0, 0.7) : Qt.rgba(1, 1, 1, 0.30)
-        border.width:       miniMouse.pressed ? 2 : 1
-        opacity:            0.92
+        id:                     obstacleBand
+        anchors.left:           parent.left
+        anchors.right:          parent.right
+        anchors.bottom:         criticalStatusBar.top
+        height:                 ScreenTools.defaultFontPixelHeight * 7.5
+        z:                      QGroundControl.zOrderTopMost
+        color:                  "#20242a"
+        opacity:                0.94
 
-        readonly property var _miniNamed: (_activeVehicle && _activeVehicle.namedValueFloats)
+        readonly property var _bandNamed: (_activeVehicle && _activeVehicle.namedValueFloats)
                                             ? _activeVehicle.namedValueFloats.values
                                             : ({})
-        readonly property real _miniClosest: {
-            var e = obstacleProfileMini._miniNamed && obstacleProfileMini._miniNamed["O_C1M"]
-            if (e && typeof e === "object" && e.value !== undefined && e.value > 0.01) {
+
+        function _named(key, minValue) {
+            var e = obstacleBand._bandNamed && obstacleBand._bandNamed[key]
+            if (e && typeof e === "object" && e.value !== undefined && e.value > minValue) {
                 return e.value
             }
             return NaN
         }
 
-        ObstacleTerrainProfile {
-            anchors.fill: parent
-            anchors.margins: ScreenTools.defaultFontPixelWidth * 0.3
-            vehicle: _activeVehicle
-            showGrid: true
-            showLabels: true
-            labelFontPointSize: ScreenTools.smallFontPointSize
+        readonly property real _closest:  _named("O_C1M", 0.01)
+        readonly property real _radarAlt: _named("U3M", 0.2)
+
+        // ------------------------------------------------ closest-obstacle cell
+        Rectangle {
+            id:             closestCell
+            anchors.left:   parent.left
+            anchors.top:    parent.top
+            anchors.bottom: parent.bottom
+            width:          ScreenTools.defaultFontPixelWidth * 22
+            color:          Qt.rgba(1, 1, 1, 0.05)
+
+            Column {
+                anchors.fill:       parent
+                anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.7
+                spacing:            0
+
+                QGCLabel {
+                    text:           qsTr("CLOSEST OBSTACLE")
+                    font.pointSize: ScreenTools.smallFontPointSize
+                    color:          "#8d959d"
+                }
+
+                // RowLayout, not Row: the unit sits on the big number's
+                // baseline, and anchors are not to be mixed with a positioner.
+                RowLayout {
+                    spacing: ScreenTools.defaultFontPixelWidth * 0.4
+
+                    QGCLabel {
+                        Layout.alignment:   Qt.AlignBaseline
+                        text:               isNaN(obstacleBand._closest)
+                                                ? "—"
+                                                : obstacleBand._closest.toFixed(1)
+                        font.pointSize:     ScreenTools.largeFontPointSize * 1.9
+                        font.bold:          true
+                        color:              "#e05252"
+                    }
+
+                    QGCLabel {
+                        Layout.alignment:   Qt.AlignBaseline
+                        text:               qsTr("m")
+                        font.pointSize:     ScreenTools.defaultFontPointSize
+                        color:              "#8d959d"
+                        visible:            !isNaN(obstacleBand._closest)
+                    }
+                }
+
+                QGCLabel {
+                    text:           isNaN(obstacleBand._radarAlt)
+                                        ? qsTr("RDR —")
+                                        : qsTr("RDR %1 m").arg(obstacleBand._radarAlt.toFixed(1))
+                    font.pointSize: ScreenTools.smallFontPointSize
+                    color:          "#8d959d"
+                }
+            }
         }
 
-        // Big closest-distance readout (top-right of the mini)
-        Column {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.topMargin: ScreenTools.defaultFontPixelHeight * 0.25
-            anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.5
-            spacing: 0
+        // ------------------------------------------------------ profile itself
+        Item {
+            anchors.left:   closestCell.right
+            anchors.right:  parent.right
+            anchors.top:    parent.top
+            anchors.bottom: parent.bottom
+
+            ObstacleTerrainProfile {
+                anchors.fill:       parent
+                anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.3
+                vehicle:            _activeVehicle
+                showGrid:           true
+                showLabels:         true
+                labelFontPointSize: ScreenTools.smallFontPointSize
+            }
 
             QGCLabel {
-                anchors.right: parent.right
-                text: qsTr("CLOSEST")
-                font.pointSize: ScreenTools.smallFontPointSize
-                color: "#cccccc"
-            }
-            QGCLabel {
-                anchors.right: parent.right
-                text: isNaN(obstacleProfileMini._miniClosest)
-                        ? "—"
-                        : (obstacleProfileMini._miniClosest.toFixed(1) + " m")
-                font.pointSize: ScreenTools.largeFontPointSize
-                font.bold: true
-                color: "white"
+                anchors.left:       parent.left
+                anchors.top:        parent.top
+                anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.6
+                text:               qsTr("OBSTACLE PROFILE · ALONG TRACK ±30 m")
+                font.pointSize:     ScreenTools.smallFontPointSize
+                color:              "#8d959d"
             }
         }
 
+        // Tap anywhere on the band for the full popup with zoom controls.
         MouseArea {
-            id: miniMouse
-            anchors.fill: parent
-            onClicked: openObstacleProfile()
+            id:             bandMouse
+            anchors.fill:   parent
+            onClicked:      openObstacleProfile()
+        }
+
+        Rectangle {
+            anchors.fill:   parent
+            color:          "transparent"
+            border.color:   bandMouse.pressed ? Qt.rgba(1, 0.6, 0, 0.7) : Qt.rgba(1, 1, 1, 0.18)
+            border.width:   bandMouse.pressed ? 2 : 1
         }
     }
 
