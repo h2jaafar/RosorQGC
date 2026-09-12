@@ -389,6 +389,8 @@ Item {
                 triggerM:           radarParams.avoidEnabled === false ? NaN : radarParams.fwdTrigM
                 downFloorM:         radarParams.dwnFloorM
                 stopModeLabel:      radarParams.haveTrigger ? radarParams.stopModeName : ""
+                ignoreRangeM:       radarParams.ignoreRangeM
+                ignoreHalfWidthM:   radarParams.ignoreHalfWidthM
             }
 
             QGCLabel {

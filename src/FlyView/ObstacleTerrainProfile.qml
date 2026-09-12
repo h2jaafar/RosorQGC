@@ -35,6 +35,17 @@ Item {
     /// LOITER / BRAKE / AUTO-OFS, from RADAR_STOP_MD -- what the vehicle does
     /// when the forward trigger is crossed.
     property string stopModeLabel: ""
+    /// Slung-payload ignore band, live from RADAR_IGN_M / RADAR_IGN_W. The
+    /// tether keeps the load at a constant RANGE whatever angle it swings to,
+    /// so range alone identifies it. NaN or <= 0 means no band is configured.
+    property real ignoreRangeM:     NaN
+    property real ignoreHalfWidthM: 0
+
+    /// U3M is published tilt-corrected, but the ignore band is defined on SLANT
+    /// range, so a reading has to be converted back before it can be tested:
+    /// slant = U3M / factor. cos(0) * cos(20), mirroring u300-avoid.lua --
+    /// revisit if the downward radar is ever remounted.
+    readonly property real _u3mTiltFactor: Math.cos(0) * Math.cos(20 * Math.PI / 180)
     property int  maxHistory:   400
 
     property bool showGrid:     true
@@ -45,6 +56,16 @@ Item {
 
     property real _amsl:    vehicle ? vehicle.altitudeAMSL.rawValue : 0
     property int  _tick:    0
+
+    /// True when the downward radar has locked onto the slung load instead of
+    /// the ground: U3M flattens at about the tether length and is NOT ground
+    /// range, so it must not be recorded as terrain or read as AGL.
+    readonly property bool _birdLocked: {
+        _tick
+        var u3 = _nf("U3M")
+        return _valid(u3) && u3 >= root.u3mMinValidM &&
+               _inIgnoreBand(u3 / root._u3mTiltFactor)
+    }
 
     // Accumulated along-track distance and the absolute-AMSL trails hung off it.
     property real _sNow:        0
@@ -62,6 +83,19 @@ Item {
 
     function _valid(v) { return !isNaN(v) && isFinite(v) }
 
+    /// Mirror of u300-avoid.lua's payload_ignored(): a straight-line SLANT
+    /// range within RADAR_IGN_W of RADAR_IGN_M is the slung load, not terrain
+    /// and not an obstacle.
+    function _inIgnoreBand(slantM) {
+        if (!_valid(root.ignoreRangeM) || root.ignoreRangeM <= 0) {
+            return false
+        }
+        if (!_valid(slantM)) {
+            return false
+        }
+        return Math.abs(slantM - root.ignoreRangeM) <= Math.max(0, root.ignoreHalfWidthM)
+    }
+
     function _obstacle(idx) {
         var d = _nf("O_C" + idx + "M")
         var a = _nf("O_C" + idx + "A")
@@ -70,7 +104,13 @@ Item {
         return {
             d: d,
             az: _valid(a) ? a : 0,
-            el: _valid(e) ? e : 0
+            el: _valid(e) ? e : 0,
+            // O_C*M is the script's 3D straight-line range, which is exactly
+            // what the band is defined on. v1.5 scripts drop banded returns
+            // before publishing, so one arriving here means an older script or
+            // params changed since: ghost it rather than colour it a threat,
+            // which is what the avoidance logic would do with it.
+            ignored: _inIgnoreBand(d)
         }
     }
 
@@ -78,7 +118,7 @@ Item {
     // window behind us.
     function _record() {
         var u3 = _nf("U3M")
-        if (_valid(u3) && u3 >= root.u3mMinValidM && root._amsl !== 0) {
+        if (_valid(u3) && u3 >= root.u3mMinValidM && root._amsl !== 0 && !root._birdLocked) {
             var g = root._ground.slice()
             g.push({ s: root._sNow, amsl: root._amsl - u3 })
             while (g.length > root.maxHistory) g.shift()
@@ -225,16 +265,31 @@ Item {
             }
 
             // ── forward returns: chain + whiskers ────────────────────────
-            var chain = []
+            var chain  = []
+            var ghosts = []
             for (var k = 1; k <= root.numObstacles; k++) {
                 var o = root._obstacle(k)
                 if (!o) continue
                 var elRad = o.el * Math.PI / 180
                 var along = o.d * Math.cos(elRad)
                 var hgt   = o.d * Math.sin(elRad)
-                chain.push({ x: along, y: hgt, d: o.d })
+                if (o.ignored) {
+                    ghosts.push({ x: along, y: hgt, d: o.d })
+                } else {
+                    chain.push({ x: along, y: hgt, d: o.d })
+                }
             }
             chain.sort(function (a, b) { return a.x - b.x })
+
+            // Returns inside the payload band draw as hollow ghosts: seen, but
+            // known to be our own load, and never joined into the chain.
+            for (var gi = 0; gi < ghosts.length; gi++) {
+                ctx.strokeStyle = qgcPal.colorGrey
+                ctx.lineWidth   = 1
+                ctx.beginPath()
+                ctx.arc(X(ghosts[gi].x), YC(Y(ghosts[gi].y)), 3, 0, 2 * Math.PI)
+                ctx.stroke()
+            }
 
             if (chain.length) {
                 // whiskers: range is exact, height is coarse by design
@@ -307,14 +362,19 @@ Item {
             // downward radar reading under the aircraft
             var u3 = root._nf("U3M")
             if (root._valid(u3) && u3 >= root.u3mMinValidM) {
-                ctx.strokeStyle = qgcPal.colorGreen
+                // Locked onto the slung load this is the tether, not the
+                // ground -- say so rather than letting it read as AGL.
+                var u3Colour = root._birdLocked ? qgcPal.colorOrange : qgcPal.colorGreen
+                ctx.strokeStyle = u3Colour
                 ctx.lineWidth   = 1
                 ctx.setLineDash([1, 3])
                 ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, YC(Y(-u3))); ctx.stroke()
                 ctx.setLineDash([])
                 if (root.showLabels) {
-                    ctx.fillStyle = qgcPal.colorGreen
-                    ctx.fillText(u3.toFixed(1) + "m", ax + 4, YC(Y(-u3)) - 2)
+                    ctx.fillStyle = u3Colour
+                    ctx.fillText(root._birdLocked ? qsTr("payload %1m").arg(u3.toFixed(1))
+                                                  : (u3.toFixed(1) + "m"),
+                                 ax + 4, YC(Y(-u3)) - 2)
                 }
             }
         }

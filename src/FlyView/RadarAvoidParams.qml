@@ -47,6 +47,13 @@ Item {
     readonly property bool stopsOnTrigger: stopModeName !== "AUTO-OFS"
     readonly property bool haveTrigger:    !isNaN(fwdTrigM) && fwdTrigM > 0
 
+    /// Slung-payload ignore band (v1.5+): centre range is the tether length,
+    /// 0 means off. A tethered load holds a constant range at any swing angle,
+    /// so range alone identifies it.
+    readonly property real ignoreRangeM:     _num(_ignMFact) === undefined ? NaN : _num(_ignMFact)
+    readonly property real ignoreHalfWidthM: _num(_ignWFact) === undefined ? 0 : Math.max(0, _num(_ignWFact))
+    readonly property bool haveIgnoreBand:   !isNaN(ignoreRangeM) && ignoreRangeM > 0
+
     // Must match u300-avoid.lua's AVOID_CLEAR_MARGIN_M.
     readonly property real _clearMarginM: 3.0
 
@@ -71,6 +78,8 @@ Item {
     readonly property var _dwnFact:    _fact("RADAR_DWN_M")    // v1.4+
     readonly property var _enFact:     _fact("RADAR_AVD_EN")
     readonly property var _stopFact:   _fact("RADAR_STOP_MD")
+    readonly property var _ignMFact:   _fact("RADAR_IGN_M")     // v1.5+
+    readonly property var _ignWFact:   _fact("RADAR_IGN_W")     // v1.5+
 
     property var _controller: controllerLoader.item
 
