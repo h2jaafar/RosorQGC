@@ -286,6 +286,31 @@ Item {
         readonly property real _closest:  _named("O_C1M", 0.01)
         readonly property real _radarAlt: _named("U3M", 0.2)
 
+        // The stop distance comes off the aircraft, never from a local guess.
+        RadarAvoidParams {
+            id:      radarParams
+            vehicle: _activeVehicle
+        }
+
+        /// Inside the trigger only when the trigger is actually known AND the
+        /// script is enabled. Unknown stays neutral rather than alarming.
+        readonly property bool _insideTrigger: radarParams.haveTrigger &&
+                                               radarParams.avoidEnabled !== false &&
+                                               !isNaN(obstacleBand._closest) &&
+                                               obstacleBand._closest <= radarParams.fwdTrigM
+
+        readonly property string _triggerText: {
+            if (radarParams.avoidEnabled === false) {
+                return qsTr("AVOID OFF")
+            }
+            if (!radarParams.haveTrigger) {
+                return qsTr("TRIG —")
+            }
+            return qsTr("TRIG %1 m · %2")
+                        .arg(radarParams.fwdTrigM.toFixed(1))
+                        .arg(radarParams.stopModeName)
+        }
+
         // ------------------------------------------------ closest-obstacle cell
         Rectangle {
             id:             closestCell
@@ -318,7 +343,7 @@ Item {
                                                 : obstacleBand._closest.toFixed(1)
                         font.pointSize:     ScreenTools.largeFontPointSize * 1.9
                         font.bold:          true
-                        color:              "#e05252"
+                        color:              obstacleBand._insideTrigger ? "#e05252" : "#e8eaed"
                     }
 
                     QGCLabel {
@@ -337,6 +362,13 @@ Item {
                     font.pointSize: ScreenTools.smallFontPointSize
                     color:          "#8d959d"
                 }
+
+                QGCLabel {
+                    text:           obstacleBand._triggerText
+                    font.pointSize: ScreenTools.smallFontPointSize
+                    color:          radarParams.avoidEnabled === false ? "#eecc44"
+                                        : (obstacleBand._insideTrigger ? "#e05252" : "#8d959d")
+                }
             }
         }
 
@@ -354,6 +386,9 @@ Item {
                 showGrid:           true
                 showLabels:         true
                 labelFontPointSize: ScreenTools.smallFontPointSize
+                triggerM:           radarParams.avoidEnabled === false ? NaN : radarParams.fwdTrigM
+                downFloorM:         radarParams.dwnFloorM
+                stopModeLabel:      radarParams.haveTrigger ? radarParams.stopModeName : ""
             }
 
             QGCLabel {

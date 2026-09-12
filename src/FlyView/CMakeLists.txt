@@ -53,6 +53,7 @@ qt_add_qml_module(FlyViewModule
         ObstacleProfilePopup.qml
         ObstacleProfileView.qml
         ObstacleTerrainProfile.qml
+        RadarAvoidParams.qml
         MultiRotorChecklist.qml
         MultiVehicleList.qml
         ModernHud.qml

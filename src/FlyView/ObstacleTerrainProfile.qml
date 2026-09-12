@@ -25,7 +25,16 @@ Item {
     property real u3mMinValidM: 0.2     ///< under this is "no reading", not ground at 0
     property real elevHighBiasM: 6.0    ///< Beeton reports up to this high...
     property real elevLowBiasM:  1.0    ///< ...and about this low
-    property real triggerM:     25.0    ///< threat colouring threshold (RADAR_TRIG_M)
+    /// Forward trigger distance, live from the vehicle's RADAR_FWD_M. NaN until
+    /// it is actually known -- a guessed threshold on a stop-distance readout
+    /// would disagree with what the aircraft will really do.
+    property real triggerM:     NaN
+    /// Downward radar floor (RADAR_DWN_M), as a height above the ground. NaN
+    /// when unknown.
+    property real downFloorM:   NaN
+    /// LOITER / BRAKE / AUTO-OFS, from RADAR_STOP_MD -- what the vehicle does
+    /// when the forward trigger is crossed.
+    property string stopModeLabel: ""
     property int  maxHistory:   400
 
     property bool showGrid:     true
@@ -256,14 +265,34 @@ Item {
                 }
             }
 
-            // ── trigger line ahead ───────────────────────────────────────
-            if (root.triggerM > 0 && root.triggerM < root.halfWidthM) {
+            // ── action line ahead, exactly at RADAR_FWD_M ────────────────
+            // Correct as a vertical line because a return's X *is* its range.
+            if (root._valid(root.triggerM) && root.triggerM > 0 && root.triggerM < root.halfWidthM) {
                 var tx = X(root.triggerM)
                 ctx.strokeStyle = qgcPal.colorRed
                 ctx.lineWidth   = 1
                 ctx.setLineDash([2, 4])
                 ctx.beginPath(); ctx.moveTo(tx, top); ctx.lineTo(tx, bottom); ctx.stroke()
                 ctx.setLineDash([])
+
+                if (root.showLabels && root.stopModeLabel !== "") {
+                    ctx.fillStyle = qgcPal.colorRed
+                    ctx.fillText(root.stopModeLabel, tx + 3, top + root.labelFontPointSize * 1.6)
+                }
+            }
+
+            // ── downward floor at RADAR_DWN_M above the ground ───────────
+            var u3Floor = root._nf("U3M")
+            if (root._valid(root.downFloorM) && root.downFloorM > 0 &&
+                    root._valid(u3Floor) && u3Floor >= root.u3mMinValidM) {
+                var fy = Y(root.downFloorM - u3Floor)
+                if (fy >= top && fy <= bottom) {
+                    ctx.strokeStyle = qgcPal.colorOrange
+                    ctx.lineWidth   = 1
+                    ctx.setLineDash([4, 4])
+                    ctx.beginPath(); ctx.moveTo(left, fy); ctx.lineTo(right, fy); ctx.stroke()
+                    ctx.setLineDash([])
+                }
             }
 
             // ── aircraft at the centre ───────────────────────────────────
