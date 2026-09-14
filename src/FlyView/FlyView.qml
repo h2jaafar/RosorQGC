@@ -354,7 +354,17 @@ Item {
                 return qsTr("AVOID OFF")
             }
             if (!radarParams.haveTrigger) {
-                return qsTr("TRIG —")
+                // TEMPORARY instrumentation (2026-09-14), remove once the
+                // trigger is confirmed on the rig. QGC does not route Qt/QML
+                // logging to logcat on Android, so the readout itself is the
+                // only channel: c=controller built, v=vehicle+parameterManager
+                // present, f=RADAR_FWD_M fact resolved, r=refresh count. A
+                // working install never reaches this branch.
+                return qsTr("TRIG — c%1 v%2 f%3 r%4")
+                            .arg(radarParams.diagController ? 1 : 0)
+                            .arg(radarParams.diagVehicle ? 1 : 0)
+                            .arg(radarParams.diagFwdFact ? 1 : 0)
+                            .arg(radarParams.diagRefresh)
             }
             return qsTr("TRIG %1 m · %2")
                         .arg(radarParams.fwdTrigM.toFixed(1))

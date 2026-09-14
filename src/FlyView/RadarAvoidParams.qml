@@ -83,13 +83,32 @@ Item {
 
     property var _controller: controllerLoader.item
 
+    /// Why the trigger is unknown, for the readout to surface. A working install
+    /// never shows these -- they are only reachable while haveTrigger is false.
+    readonly property bool diagController: !!_controller
+    readonly property bool diagVehicle:    !!(root.vehicle && root.vehicle.parameterManager)
+    readonly property bool diagFwdFact:    !!_fwdFact
+    readonly property int  diagRefresh:    _refresh
+
     Component {
         id: controllerComponent
         ParameterEditorController { }
     }
 
+    /// Built only once a vehicle exists -- not eagerly with the fly view.
+    ///
+    /// FactPanelController snapshots MultiVehicleManager::activeVehicle() in its
+    /// constructor and never updates it, falling back to the offline editing
+    /// vehicle when nothing is connected. The fly view is created long before
+    /// any link comes up, so a controller built eagerly stays bound to that
+    /// offline vehicle for the whole session and every getParameterFact() call
+    /// searches an empty parameter set. That is why the trigger read as unknown
+    /// on the bench 2026-09-14 while the Parameter editor listed
+    /// RADAR_FWD_M = 25.0 on the same vehicle -- the editor's own controller is
+    /// built after you connect, so it snapshots the real one.
     Loader {
         id:              controllerLoader
+        active:          root.vehicle !== null
         sourceComponent: controllerComponent
     }
 
