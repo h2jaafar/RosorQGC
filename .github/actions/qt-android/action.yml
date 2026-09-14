@@ -125,7 +125,14 @@ runs:
       uses: jurplel/install-qt-action@v4
       with:
         version: ${{ inputs.version }}
-        host: ${{ inputs.host }}
+        # Qt serves the Android packages from the all_os repository. The
+        # per-host paths (linux_x64/android, ...) stop at 6.7.3, so aqtinstall
+        # looking there for 6.10.1 reports "No latest version available" and the
+        # job dies before Configure. Verified against the aqtinstall 3.3.0 this
+        # action pins: `list-qt linux android --spec 6.10.1` fails while
+        # `list-qt all_os android --spec 6.10.1` returns 6.10.1. Only the
+        # Android target moved -- the desktop install above keeps the real host.
+        host: all_os
         target: android
         arch: android_arm64_v8a
         dir: ${{ runner.temp }}
@@ -138,7 +145,7 @@ runs:
       uses: jurplel/install-qt-action@v4
       with:
         version: ${{ inputs.version }}
-        host: ${{ inputs.host }}
+        host: all_os
         target: android
         arch: android_armv7
         dir: ${{ runner.temp }}
@@ -151,7 +158,7 @@ runs:
       uses: jurplel/install-qt-action@v4
       with:
         version: ${{ inputs.version }}
-        host: ${{ inputs.host }}
+        host: all_os
         target: android
         arch: android_x86_64
         dir: ${{ runner.temp }}
@@ -164,7 +171,7 @@ runs:
       uses: jurplel/install-qt-action@v4
       with:
         version: ${{ inputs.version }}
-        host: ${{ inputs.host }}
+        host: all_os
         target: android
         arch: android_x86
         dir: ${{ runner.temp }}
