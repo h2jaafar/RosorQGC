@@ -90,9 +90,16 @@ Item {
         bottomEdgeLeftInset:    _pipView.bottomEdgeLeftInset
     }
 
+    // The map's zone, not the whole window. Main.dc.html's rule is five fixed
+    // zones that cannot overlap, so the map is bounded by the rail, the column,
+    // the status bar and the obstacle band rather than running underneath them
+    // and relying on insets to keep its content clear.
     Item {
         id:                 mapHolder
-        anchors.fill:       parent
+        anchors.left:       actionRail.right
+        anchors.right:      instrumentColumn.left
+        anchors.top:        toolbar.bottom
+        anchors.bottom:     obstacleBand.top
 
         FlyViewMap {
             id:                     mapControl
@@ -559,6 +566,40 @@ Item {
             border.color:   bandMouse.pressed ? Qt.rgba(1, 0.6, 0, 0.7) : Qt.rgba(1, 1, 1, 0.18)
             border.width:   bandMouse.pressed ? 2 : 1
         }
+    }
+
+    // ------------------------------------------------------------ action rail
+    // 116 of 1280 in the artboard.
+    FlyViewActionRail {
+        id:                 actionRail
+        anchors.left:       parent.left
+        anchors.top:        toolbar.bottom
+        anchors.bottom:     obstacleBand.top
+        width:              ScreenTools.defaultFontPixelWidth * 8
+        z:                  QGroundControl.zOrderTopMost
+        visible:            !QGroundControl.videoManager.fullScreen
+        guidedController:   guidedActionsController
+        fieldModeEnabled:   _fieldModeEnabled
+
+        onFieldRequested:   QGroundControl.settingsManager.appSettings.fieldModeEnabled.value = !_fieldModeEnabled
+        onFavsRequested:    _showParameterFavoritesPanel = !_showParameterFavoritesPanel
+        onVerifyRequested:  openMissionQuickVerify()
+    }
+
+    // ------------------------------------------------------ instrument column
+    // 340 of 1280 in the artboard.
+    FlyViewInstrumentColumn {
+        id:                 instrumentColumn
+        anchors.right:      parent.right
+        anchors.top:        toolbar.bottom
+        anchors.bottom:     obstacleBand.top
+        width:              ScreenTools.defaultFontPixelWidth * 23.5
+        z:                  QGroundControl.zOrderTopMost
+        visible:            !QGroundControl.videoManager.fullScreen
+        vehicle:            _activeVehicle
+        missionController:  _planController.missionController
+
+        onSwapRequested:    _pipView._swapPip()
     }
 
     FlyViewToolBar {
