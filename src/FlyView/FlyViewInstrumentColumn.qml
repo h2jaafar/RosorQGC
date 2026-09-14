@@ -27,6 +27,8 @@ Rectangle {
     signal swapRequested()
 
     color: qgcPal.window
+    // Nothing leaves the zone, whatever the screen budget turns out to be.
+    clip:  true
 
     QGCPalette { id: qgcPal }
 
@@ -170,9 +172,18 @@ Rectangle {
         }
 
         // ----------------------------------------------------- flight display
+        //
+        // 316 of 800 in the artboard, but that assumes the artboard's own
+        // budget. The handheld gives this column roughly 410px once the
+        // toolbar, band and status bar have taken theirs, and a fixed 316 here
+        // pushed the mission block straight out of the bottom of the column and
+        // over the obstacle band. The display is the one item that reads fine
+        // smaller, so it takes the squeeze.
         PrimaryFlightDisplay {
             Layout.fillWidth:       true
+            Layout.fillHeight:      true
             Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 11
+            Layout.minimumHeight:   ScreenTools.defaultFontPixelHeight * 6
             radius:                 0
         }
 
@@ -223,10 +234,10 @@ Rectangle {
 
         // ------------------------------------------------------ mission block
         MissionProgressBlock {
-            Layout.fillWidth:   true
-            Layout.fillHeight:  true
-            accentColor:        root._accent
-            missionController:  root.missionController
+            Layout.fillWidth:       true
+            Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 4
+            accentColor:            root._accent
+            missionController:      root.missionController
         }
     }
 }

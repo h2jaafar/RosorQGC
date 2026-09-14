@@ -9,11 +9,11 @@ import QGroundControl.Controls
 /// instead of behind a menu that has to be opened mid-flight.
 ///
 /// Main.dc.html draws exactly four -- Takeoff, Return, Land, Hold -- with Hold
-/// in #b52b2b because it is the one that stops the aircraft. It does not say
-/// where the fork's Field / Favs / Verify entries belong, nor the rest of the
-/// guided actions, and none of them can simply be deleted to make a layout
-/// match. They sit below a divider as compact secondary entries: the rail stays
-/// "everything you press", and the drawing's four keep the visual weight.
+/// in #b52b2b because it is the one that stops the aircraft. Four and only
+/// four: a first pass put the fork's Field / Favs / Verify entries below a
+/// divider here, and on the handheld they took half the rail's height and
+/// squeezed the flight actions to 49px each. Those three still live in the
+/// toolbar, and where they end up is part of consolidating the status bar.
 ///
 /// Actions grey out rather than disappear when the vehicle cannot accept them.
 /// A rail whose buttons move around as flight state changes is a rail you have
@@ -21,12 +21,7 @@ import QGroundControl.Controls
 Rectangle {
     id: root
 
-    property var  guidedController:  null
-    property bool fieldModeEnabled:  false
-
-    signal fieldRequested()
-    signal favsRequested()
-    signal verifyRequested()
+    property var guidedController: null
 
     color: qgcPal.window
 
@@ -142,33 +137,5 @@ Rectangle {
             onActivated:    root._confirm(root.guidedController.actionPause)
         }
 
-        Rectangle {
-            Layout.fillWidth:       true
-            Layout.preferredHeight: 2
-            color:                  qgcPal.windowShade
-        }
-
-        // Not in the drawing. Kept because they are fork features with no other
-        // home, and compact so they read as secondary to the four above. The
-        // remaining guided actions are not duplicated here -- the tool strip in
-        // the map zone still carries them.
-        RailButton {
-            compact:        true
-            label:          qsTr("Field")
-            color:          root.fieldModeEnabled ? qgcPal.buttonHighlight : qgcPal.windowShadeLight
-            onActivated:    root.fieldRequested()
-        }
-
-        RailButton {
-            compact:        true
-            label:          qsTr("Favs")
-            onActivated:    root.favsRequested()
-        }
-
-        RailButton {
-            compact:        true
-            label:          qsTr("Verify")
-            onActivated:    root.verifyRequested()
-        }
     }
 }

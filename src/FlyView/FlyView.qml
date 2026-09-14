@@ -187,7 +187,12 @@ Item {
             mapControl:             _mapControl
             visible:                !QGroundControl.videoManager.fullScreen
             isViewer3DOpen:         viewer3DWindow.isOpen
-            pfdIsMainPane:          !_mainWindowIsMap && !QGroundControl.videoManager.hasVideo
+            // The instrument column now carries the flight display permanently,
+            // so the map's own rose and values bar are always redundant -- and
+            // the artboard draws no instruments over the map at all. This is
+            // what that layer's flag already means: the PFD is on screen, so
+            // stop repeating it.
+            pfdIsMainPane:          true
         }
 
         FlyViewCustomLayer {
@@ -579,11 +584,6 @@ Item {
         z:                  QGroundControl.zOrderTopMost
         visible:            !QGroundControl.videoManager.fullScreen
         guidedController:   guidedActionsController
-        fieldModeEnabled:   _fieldModeEnabled
-
-        onFieldRequested:   QGroundControl.settingsManager.appSettings.fieldModeEnabled.value = !_fieldModeEnabled
-        onFavsRequested:    _showParameterFavoritesPanel = !_showParameterFavoritesPanel
-        onVerifyRequested:  openMissionQuickVerify()
     }
 
     // ------------------------------------------------------ instrument column
