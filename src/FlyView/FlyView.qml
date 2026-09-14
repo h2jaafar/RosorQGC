@@ -276,9 +276,30 @@ Item {
         anchors.left:           parent.left
         anchors.right:          parent.right
         anchors.bottom:         criticalStatusBar.top
-        height:                 ScreenTools.defaultFontPixelHeight * 7.5
+        // 168 of 800 in the artboard.
+        height:                 ScreenTools.defaultFontPixelHeight * 5.8
         z:                      QGroundControl.zOrderTopMost
-        color:                  "#20242a"
+        color:                  qgcPal.window
+
+        // Design palette. The artboard's note records these as taken from
+        // QGCPalette.cc, so surfaces and text come from qgcPal and follow the
+        // Indoor/Outdoor theme, while the four semantic accents are fixed:
+        // they mean danger / good / alert / action wherever they appear.
+        readonly property color _danger:  "#b52b2b"
+        readonly property color _good:    "#008f2d"
+        readonly property color _alert:   "#eecc44"
+        readonly property color _accent:  "#3A9BDC"
+
+        QGCPalette { id: qgcPal }
+
+        // Border-top 2px #c9ccce in the artboard.
+        Rectangle {
+            anchors.left:   parent.left
+            anchors.right:  parent.right
+            anchors.top:    parent.top
+            height:         2
+            color:          qgcPal.windowShade
+        }
 
         readonly property var _bandNamed: (_activeVehicle && _activeVehicle.namedValueFloats)
                                             ? _activeVehicle.namedValueFloats.values
@@ -335,66 +356,78 @@ Item {
             function onAvoidEnabledChanged() { obstacleBand._updateInsideTrigger() }
         }
 
-        readonly property real _terrainAgl: (_activeVehicle && _activeVehicle.altitudeAboveTerr)
-                                                ? _activeVehicle.altitudeAboveTerr.rawValue
-                                                : NaN
 
-        readonly property string _aglText: {
-            if (!isNaN(obstacleBand._radarAlt) && !obstacleProfile.birdLocked) {
-                return qsTr("AGL %1 m · radar").arg(obstacleBand._radarAlt.toFixed(1))
-            }
-            if (!isNaN(obstacleBand._terrainAgl) && isFinite(obstacleBand._terrainAgl)) {
-                return qsTr("AGL %1 m · terrain").arg(obstacleBand._terrainAgl.toFixed(1))
-            }
-            return qsTr("AGL —")
-        }
+        /// The cell's footer row in the artboard: "RDR 11.8 m" and "12 Hz".
+        ///
+        /// Height above ground is deliberately not here. The artboard gives AGL
+        /// its own cell in the instrument column, next to ground and vertical
+        /// speed, which is where a pilot reads it alongside the other rates
+        /// rather than inside the obstacle readout.
+        readonly property real _obstacleHz: _named("O_HZ", -1)
 
+        readonly property string _rdrText: isNaN(obstacleBand._radarAlt)
+                                            ? qsTr("RDR —")
+                                            : qsTr("RDR %1 m").arg(obstacleBand._radarAlt.toFixed(1))
+
+        readonly property string _hzText: isNaN(obstacleBand._obstacleHz)
+                                            ? qsTr("— Hz")
+                                            : qsTr("%1 Hz").arg(obstacleBand._obstacleHz.toFixed(0))
+
+        /// Drawn on the profile as "trigger 25 m", where the artboard puts it --
+        /// against the line it describes, not in the numbers cell.
         readonly property string _triggerText: {
             if (radarParams.avoidEnabled === false) {
-                return qsTr("AVOID OFF")
+                return qsTr("avoid off")
             }
             if (!radarParams.haveTrigger) {
-                // TEMPORARY instrumentation (2026-09-14), remove once the
-                // trigger is confirmed on the rig. QGC does not route Qt/QML
-                // logging to logcat on Android, so the readout itself is the
-                // only channel: c=controller built, v=vehicle+parameterManager
-                // present, f=RADAR_FWD_M fact resolved, r=refresh count. A
-                // working install never reaches this branch.
-                return qsTr("TRIG — c%1 v%2 f%3 r%4")
-                            .arg(radarParams.diagController ? 1 : 0)
-                            .arg(radarParams.diagVehicle ? 1 : 0)
-                            .arg(radarParams.diagFwdFact ? 1 : 0)
-                            .arg(radarParams.diagRefresh)
+                return ""
             }
-            return qsTr("TRIG %1 m · %2")
-                        .arg(radarParams.fwdTrigM.toFixed(1))
-                        .arg(radarParams.stopModeName)
+            return qsTr("trigger %1 m").arg(radarParams.fwdTrigM.toFixed(0))
         }
 
         // ------------------------------------------------ closest-obstacle cell
+        //
+        // Artboard: a 210px cell with 10/14 padding and 6px gaps -- label, the
+        // 52px distance, a full-width INSIDE TRIGGER chip, and RDR with the
+        // obstacle update rate justified across the footer.
         Rectangle {
-            id:             closestCell
-            anchors.left:   parent.left
-            anchors.top:    parent.top
-            anchors.bottom: parent.bottom
-            width:          ScreenTools.defaultFontPixelWidth * 22
-            color:          Qt.rgba(1, 1, 1, 0.05)
+            id:                 closestCell
+            anchors.left:       parent.left
+            anchors.top:        parent.top
+            anchors.topMargin:  2               // clear the band's top border
+            anchors.bottom:     parent.bottom
+            width:              ScreenTools.defaultFontPixelWidth * 14.5
+            color:              qgcPal.window
 
-            Column {
-                anchors.fill:       parent
-                anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.7
-                spacing:            0
+            // border-right 1px #dfe1e3
+            Rectangle {
+                anchors.right:  parent.right
+                anchors.top:    parent.top
+                anchors.bottom: parent.bottom
+                width:          1
+                color:          qgcPal.windowShade
+            }
+
+            ColumnLayout {
+                anchors.fill:           parent
+                anchors.leftMargin:     ScreenTools.defaultFontPixelWidth
+                anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
+                anchors.topMargin:      ScreenTools.defaultFontPixelHeight * 0.3
+                anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.3
+                spacing:                ScreenTools.defaultFontPixelHeight * 0.2
 
                 QGCLabel {
-                    text:           qsTr("CLOSEST OBSTACLE")
-                    font.pointSize: ScreenTools.smallFontPointSize
-                    color:          "#8d959d"
+                    Layout.fillWidth:   true
+                    text:               qsTr("CLOSEST OBSTACLE")
+                    font.pointSize:     ScreenTools.smallFontPointSize
+                    color:              qgcPal.windowTransparentText
                 }
 
                 // RowLayout, not Row: the unit sits on the big number's
                 // baseline, and anchors are not to be mixed with a positioner.
                 RowLayout {
-                    spacing: ScreenTools.defaultFontPixelWidth * 0.4
+                    Layout.fillWidth:   true
+                    spacing:            ScreenTools.defaultFontPixelWidth * 0.4
 
                     QGCLabel {
                         Layout.alignment:   Qt.AlignBaseline
@@ -403,57 +436,31 @@ Item {
                                                 : obstacleBand._closest.toFixed(1)
                         font.pointSize:     ScreenTools.largeFontPointSize * 1.9
                         font.bold:          true
-                        color:              obstacleBand._insideTrigger ? "#e05252" : "#e8eaed"
+                        color:              obstacleBand._insideTrigger ? obstacleBand._danger
+                                                                        : qgcPal.text
                     }
 
                     QGCLabel {
                         Layout.alignment:   Qt.AlignBaseline
                         text:               qsTr("m")
                         font.pointSize:     ScreenTools.defaultFontPointSize
-                        color:              "#8d959d"
+                        color:              qgcPal.windowTransparentText
                         visible:            !isNaN(obstacleBand._closest)
                     }
+
+                    Item { Layout.fillWidth: true }
                 }
 
-                // Height above ground, always labelled with where it came
-                // from. The downward radar is authoritative EXCEPT when it is
-                // locked onto the slung load, where it reports the tether and
-                // not the ground; then fall back to the terrain height, the
-                // way ObstacleHUD's select_agl() falls back to GPS-SRTM.
-                QGCLabel {
-                    text:           obstacleBand._aglText
-                    font.pointSize: ScreenTools.smallFontPointSize
-                    color:          obstacleProfile.birdLocked ? "#eecc44" : "#8d959d"
-                }
-
-                QGCLabel {
-                    text:           obstacleBand._triggerText
-                    font.pointSize: ScreenTools.smallFontPointSize
-                    color:          radarParams.avoidEnabled === false ? "#eecc44"
-                                        : (obstacleBand._insideTrigger ? "#e05252" : "#8d959d")
-                }
-
-                Item {
-                    width:      1
-                    height:     ScreenTools.defaultFontPixelHeight * 0.35
-                    visible:    insideTriggerChip.visible
-                }
-
-                // The chip the mockup asked for. It was withdrawn while nothing
-                // carried a trigger distance; RADAR_FWD_M does, read live off
-                // the aircraft, so it can be drawn honestly now. Absent rather
-                // than greyed when the trigger is unknown -- an indicator that
-                // is always on screen stops being read.
+                // Full width, as drawn. A stop indicator sized to its own text
+                // reads as a label; sized to the cell it reads as a state.
                 Rectangle {
-                    id:         insideTriggerChip
-                    visible:    obstacleBand._insideTrigger
-                    radius:     ScreenTools.defaultBorderRadius
-                    color:      "#e05252"
-                    width:      insideTriggerLabel.implicitWidth + (ScreenTools.defaultFontPixelWidth * 1.2)
-                    height:     insideTriggerLabel.implicitHeight + (ScreenTools.defaultFontPixelWidth * 0.6)
+                    id:                     insideTriggerChip
+                    Layout.fillWidth:       true
+                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight
+                    visible:                obstacleBand._insideTrigger
+                    color:                  obstacleBand._danger
 
                     QGCLabel {
-                        id:                 insideTriggerLabel
                         anchors.centerIn:   parent
                         text:               qsTr("INSIDE TRIGGER")
                         font.pointSize:     ScreenTools.smallFontPointSize
@@ -461,15 +468,45 @@ Item {
                         color:              "white"
                     }
                 }
+
+                Item { Layout.fillHeight: true }
+
+                RowLayout {
+                    Layout.fillWidth:   true
+                    spacing:            0
+
+                    QGCLabel {
+                        // Amber while the downward radar is locked on the slung
+                        // load: the number is the tether, not the ground.
+                        text:           obstacleBand._rdrText
+                        font.pointSize: ScreenTools.smallFontPointSize
+                        color:          obstacleProfile.birdLocked ? obstacleBand._alert
+                                                                   : qgcPal.windowTransparentText
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    QGCLabel {
+                        text:           obstacleBand._hzText
+                        font.pointSize: ScreenTools.smallFontPointSize
+                        color:          qgcPal.windowTransparentText
+                    }
+                }
             }
         }
 
         // ------------------------------------------------------ profile itself
-        Item {
-            anchors.left:   closestCell.right
-            anchors.right:  parent.right
-            anchors.top:    parent.top
-            anchors.bottom: parent.bottom
+        //
+        // The one dark surface in the artboard. Terrain and returns are drawn
+        // light on dark, so the panel stays #20242a in either theme rather than
+        // following qgcPal -- inverting it would invert the plot with it.
+        Rectangle {
+            anchors.left:       closestCell.right
+            anchors.right:      parent.right
+            anchors.top:        parent.top
+            anchors.topMargin:  2               // clear the band's top border
+            anchors.bottom:     parent.bottom
+            color:              "#20242a"
 
             ObstacleTerrainProfile {
                 id:                 obstacleProfile
@@ -493,6 +530,19 @@ Item {
                 text:               qsTr("OBSTACLE PROFILE · ALONG TRACK ±30 m")
                 font.pointSize:     ScreenTools.smallFontPointSize
                 color:              "#8d959d"
+            }
+
+            // The artboard states the trigger distance here, against the line it
+            // describes, in #b52b2b so it reads as the limit rather than a
+            // caption. Blank when the vehicle has not told us one.
+            QGCLabel {
+                anchors.right:      parent.right
+                anchors.top:        parent.top
+                anchors.margins:    ScreenTools.defaultFontPixelWidth * 0.6
+                text:               obstacleBand._triggerText
+                visible:            text !== ""
+                font.pointSize:     ScreenTools.smallFontPointSize
+                color:              obstacleBand._danger
             }
         }
 

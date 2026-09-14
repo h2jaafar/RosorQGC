@@ -83,13 +83,6 @@ Item {
 
     property var _controller: controllerLoader.item
 
-    /// Why the trigger is unknown, for the readout to surface. A working install
-    /// never shows these -- they are only reachable while haveTrigger is false.
-    readonly property bool diagController: !!_controller
-    readonly property bool diagVehicle:    !!(root.vehicle && root.vehicle.parameterManager)
-    readonly property bool diagFwdFact:    !!_fwdFact
-    readonly property int  diagRefresh:    _refresh
-
     Component {
         id: controllerComponent
         ParameterEditorController { }
