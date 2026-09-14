@@ -121,35 +121,13 @@ Item {
                         visible:            _activeVehicle
                     }
 
-                    QGCButton {
-                        id:                 fieldModeToggle
-                        text:               _fieldModeEnabled ? qsTr("Field On") : qsTr("Field")
-                        leftPadding:        leftPanelLayout._toolBtnPad
-                        rightPadding:       leftPanelLayout._toolBtnPad
-                        checkable:          true
-                        checked:            _fieldModeEnabled
-                        primary:            _fieldModeEnabled
-                        onClicked:          QGroundControl.settingsManager.appSettings.fieldModeEnabled.value = !_fieldModeEnabled
-                    }
-
-                    QGCButton {
-                        id:                 parameterFavoritesToggle
-                        text:               qsTr("Favs")
-                        leftPadding:        leftPanelLayout._toolBtnPad
-                        rightPadding:       leftPanelLayout._toolBtnPad
-                        checkable:          true
-                        checked:            parameterFavoritesVisible
-                        primary:            parameterFavoritesVisible
-                        onClicked:          control.toggleParameterFavorites()
-                    }
-
-                    QGCButton {
-                        id:         missionQuickVerifyButton
-                        text:       qsTr("Verify")
-                        leftPadding:  leftPanelLayout._toolBtnPad
-                        rightPadding: leftPanelLayout._toolBtnPad
-                        onClicked:  control.showMissionQuickVerify()
-                    }
+                    // Field, Favs and Verify removed: Main.dc.html has five
+                    // zones and none of them holds a tool button, so rather
+                    // than find them a corner the drawing does not have, they
+                    // go. Field mode, the parameter favourites panel and
+                    // mission quick-verify are no longer reachable from the fly
+                    // view; the panels themselves are untouched and can be put
+                    // back behind whatever entry point the design grows.
                 }
             }
             Item {

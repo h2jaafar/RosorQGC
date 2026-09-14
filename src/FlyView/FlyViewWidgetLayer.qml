@@ -42,13 +42,15 @@ Item {
 
     QGCToolInsets {
         id:                     _totalToolInsets
-        leftEdgeTopInset:       toolStrip.leftEdgeTopInset
-        leftEdgeCenterInset:    toolStrip.leftEdgeCenterInset
+        // The tool strip is gone; the action rail owns the left edge now and is
+        // a zone of its own, so nothing here has to be dodged.
+        leftEdgeTopInset:       0
+        leftEdgeCenterInset:    0
         leftEdgeBottomInset:    virtualJoystickMultiTouch.visible ? virtualJoystickMultiTouch.leftEdgeBottomInset : parentToolInsets.leftEdgeBottomInset
         rightEdgeTopInset:      topRightPanel.rightEdgeTopInset
         rightEdgeCenterInset:   topRightPanel.rightEdgeCenterInset
         rightEdgeBottomInset:   bottomRightRowLayout.rightEdgeBottomInset
-        topEdgeLeftInset:       toolStrip.topEdgeLeftInset
+        topEdgeLeftInset:       0
         topEdgeCenterInset:     mapScale.topEdgeCenterInset
         topEdgeRightInset:      topRightPanel.topEdgeRightInset
         bottomEdgeLeftInset:    virtualJoystickMultiTouch.visible ? virtualJoystickMultiTouch.bottomEdgeLeftInset : parentToolInsets.bottomEdgeLeftInset
@@ -113,7 +115,7 @@ Item {
         anchors.bottom:             parent.bottom
         anchors.bottomMargin:       bottomLoaderMargin
         anchors.left:               parent.left
-        anchors.leftMargin:         ( y > toolStrip.y + toolStrip.height ? toolStrip.width / 2 : toolStrip.width * 1.05 + toolStrip.x)
+        anchors.leftMargin:         _toolsMargin
         source:                     "qrc:/qml/QGroundControl/FlyView/VirtualJoystick.qml"
         active:                     _virtualJoystickEnabled && !(_activeVehicle ? _activeVehicle.usingHighLatencyLink : false)
 
@@ -148,25 +150,11 @@ Item {
         }
     }
 
-    FlyViewToolStrip {
-        id:                     toolStrip
-        anchors.left:           parent.left
-        anchors.top:            parent.top
-        z:                      QGroundControl.zOrderWidgets
-        maxHeight:              parent.height - y - parentToolInsets.bottomEdgeLeftInset - _toolsMargin
-        visible:                !_fieldModeEnabled && !QGroundControl.videoManager.fullScreen
-
-        onDisplayPreFlightChecklist: {
-            if (!preFlightChecklistLoader.active) {
-                preFlightChecklistLoader.active = true
-            }
-            preFlightChecklistLoader.item.open()
-        }
-
-        property real topEdgeLeftInset:     visible ? y + height : 0
-        property real leftEdgeTopInset:     visible ? x + width : 0
-        property real leftEdgeCenterInset:  leftEdgeTopInset
-    }
+    // The tool strip is gone. Main.dc.html draws no controls over the map --
+    // the action rail is the action surface, and it is a zone rather than an
+    // overlay. Removing it also takes the guided actions the rail does not
+    // carry (Orbit, ROI, Change Alt, Change Speed, Goto, Set Home) and the
+    // pre-flight checklist entry, which was the explicit instruction.
 
     VehicleWarnings {
         anchors.centerIn:   parent
@@ -176,7 +164,8 @@ Item {
 
     MapScale {
         id:                 mapScale
-        anchors.left:       toolStrip.right
+        anchors.left:       parent.left
+        anchors.leftMargin: _toolsMargin
         anchors.top:        parent.top
         mapControl:         _mapControl
         autoHide:           true
