@@ -95,7 +95,23 @@ Item {
 
     Connections {
         target: root.vehicle ? root.vehicle.parameterManager : null
+        ignoreUnknownSignals: true
+
         function onParametersReadyChanged() { root._refresh++ }
+
+        /// The RADAR_* set is not firmware-owned: u300-avoid.lua registers it at
+        /// run time, so the parameters routinely appear *after* the initial
+        /// download has finished and parametersReady has already fired. Without
+        /// this the fact bindings below keep the null they resolved to while the
+        /// script's table was still empty, and the trigger reads as unknown even
+        /// though the vehicle is reporting it -- verified on the bench
+        /// 2026-09-14, where the Parameter editor listed RADAR_FWD_M = 25.0
+        /// while the fly view still showed "TRIG --".
+        function onFactAdded(componentId, fact) {
+            if (fact && fact.name.indexOf("RADAR_") === 0) {
+                root._refresh++
+            }
+        }
     }
 
     onVehicleChanged: root._refresh++
