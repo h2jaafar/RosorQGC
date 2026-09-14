@@ -135,6 +135,18 @@ jobs:
           android-build-tools: ${{ steps.config.outputs.android_build_tools }}
           save-cache: ${{ github.event_name != 'pull_request' }}
 
+      # The all_os Android packages arrive without the executable bit on
+      # POSIX hosts, so qt-cmake is present but not runnable and Configure
+      # dies with exit 126 before CMake is even reached. Cheap and harmless
+      # to reassert; mac is unaffected but costs nothing to cover.
+      - name: Make Qt tools executable
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          for d in "${QT_ROOT_DIR}/bin" "${QT_ROOT_DIR}/../"*/bin; do
+            [ -d "$d" ] && chmod -R +x "$d" || true
+          done
+
       - name: Configure
         shell: bash
         working-directory: ${{ runner.temp }}/build
