@@ -7,13 +7,23 @@ import QGroundControl.Controls
 
 Rectangle {
     id:                 root
-    height:             _mainRowHeight + (_namedFloatList.length > 0 ? _namedFloatRowHeight + _barPadding : 0)
+    // Must account for every band the rows actually occupy: the top margin
+    // above the first row and the padding below the last one as well as the
+    // rows themselves. Leaving the top margin out made the bar shorter than its
+    // own content, and because it is anchored to the bottom of the window the
+    // overflow fell off the screen edge -- on the 7" handheld that clipped the
+    // bottom border and the descenders off the named-float row.
+    height:             _topMargin +
+                        _mainRowHeight +
+                        (_namedFloatList.length > 0 ? _barPadding + _namedFloatRowHeight : 0) +
+                        _barPadding
     color:              "transparent"
     z:                  10000
 
     property var    vehicle:            null
     property bool   fieldModeEnabled:   false
     property real   _barPadding:        ScreenTools.defaultFontPixelWidth * 0.5
+    property real   _topMargin:         ScreenTools.defaultFontPixelWidth * 0.25
     property real   _popupMargin:       ScreenTools.defaultFontPixelWidth
     property real   _mainRowHeight:     ScreenTools.toolbarHeight * 0.7
     property real   _namedFloatRowHeight: ScreenTools.toolbarHeight * 0.6
@@ -505,7 +515,7 @@ Rectangle {
         height:                 _mainRowHeight
         anchors.leftMargin:     ScreenTools.defaultFontPixelWidth
         anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
-        anchors.topMargin:      ScreenTools.defaultFontPixelWidth * 0.25
+        anchors.topMargin:      _topMargin
         spacing:                ScreenTools.defaultFontPixelWidth
 
         StatusItem {

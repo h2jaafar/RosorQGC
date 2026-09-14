@@ -167,7 +167,14 @@ Item {
             anchors.right:          guidedValueSlider.visible ? guidedValueSlider.left : parent.right
             anchors.margins:        _widgetMargin
             anchors.topMargin:      toolbar.height + _widgetMargin
-            bottomRowReservedHeight: (criticalStatusBar ? criticalStatusBar.height : 0) + _widgetMargin
+            // Both bottom strips have to be reserved, not just the status bar.
+            // The obstacle band is drawn at zOrderTopMost, so anything laid out
+            // underneath it is not merely cramped, it is covered: the compass
+            // rose and the values bar were being positioned into the band's
+            // rows and hidden by it.
+            bottomRowReservedHeight: (criticalStatusBar ? criticalStatusBar.height : 0) +
+                                     (obstacleBand ? obstacleBand.height : 0) +
+                                     _widgetMargin
             z:                      _fullItemZorder + 2 // we need to add one extra layer for map 3d viewer (normally was 1)
             parentToolInsets:       _toolInsets
             mapControl:             _mapControl
@@ -258,9 +265,12 @@ Item {
     // status bar. The closest-obstacle distance is the largest number on the
     // screen because it is the one that decides whether to stop.
     //
-    // No "inside trigger" state is drawn. The mockup had one, but nothing in
-    // the firmware or the named-value stream tells us the avoidance trigger
-    // distance, and a made-up threshold on a safety readout is worse than none.
+    // Fully opaque on purpose. The band sits over the map at zOrderTopMost, and
+    // on the 7" handheld even a few percent of translucency lets the satellite
+    // imagery, the compass rose and the values bar read straight through the
+    // one readout the pilot cannot afford to squint at. Verified on the bench
+    // 2026-09-14: at opacity 0.94 the rose and the values grid were legible
+    // through the terrain fill.
     Rectangle {
         id:                     obstacleBand
         anchors.left:           parent.left
@@ -269,7 +279,6 @@ Item {
         height:                 ScreenTools.defaultFontPixelHeight * 7.5
         z:                      QGroundControl.zOrderTopMost
         color:                  "#20242a"
-        opacity:                0.94
 
         readonly property var _bandNamed: (_activeVehicle && _activeVehicle.namedValueFloats)
                                             ? _activeVehicle.namedValueFloats.values
@@ -294,10 +303,37 @@ Item {
 
         /// Inside the trigger only when the trigger is actually known AND the
         /// script is enabled. Unknown stays neutral rather than alarming.
-        readonly property bool _insideTrigger: radarParams.haveTrigger &&
-                                               radarParams.avoidEnabled !== false &&
-                                               !isNaN(obstacleBand._closest) &&
-                                               obstacleBand._closest <= radarParams.fwdTrigM
+        ///
+        /// Latched with the script's own hysteresis: it arms at RADAR_FWD_M and
+        /// releases only past RADAR_FWD_M + AVOID_CLEAR_MARGIN_M -- the same two
+        /// distances u300-avoid.lua uses, so the chip and the aircraft agree. A
+        /// bare "closest <= trigger" test chatters while a return sits on the
+        /// threshold, which on a stop indicator reads as the aircraft changing
+        /// its mind.
+        property bool _insideTrigger: false
+
+        function _updateInsideTrigger() {
+            if (!radarParams.haveTrigger || radarParams.avoidEnabled === false ||
+                    isNaN(obstacleBand._closest)) {
+                obstacleBand._insideTrigger = false
+            } else if (obstacleBand._insideTrigger) {
+                if (obstacleBand._closest > radarParams.clearM) {
+                    obstacleBand._insideTrigger = false
+                }
+            } else if (obstacleBand._closest <= radarParams.fwdTrigM) {
+                obstacleBand._insideTrigger = true
+            }
+        }
+
+        on_ClosestChanged: obstacleBand._updateInsideTrigger()
+
+        Connections {
+            target: radarParams
+            ignoreUnknownSignals: true
+            function onFwdTrigMChanged()     { obstacleBand._updateInsideTrigger() }
+            function onHaveTriggerChanged()  { obstacleBand._updateInsideTrigger() }
+            function onAvoidEnabledChanged() { obstacleBand._updateInsideTrigger() }
+        }
 
         readonly property real _terrainAgl: (_activeVehicle && _activeVehicle.altitudeAboveTerr)
                                                 ? _activeVehicle.altitudeAboveTerr.rawValue
@@ -385,6 +421,35 @@ Item {
                     font.pointSize: ScreenTools.smallFontPointSize
                     color:          radarParams.avoidEnabled === false ? "#eecc44"
                                         : (obstacleBand._insideTrigger ? "#e05252" : "#8d959d")
+                }
+
+                Item {
+                    width:      1
+                    height:     ScreenTools.defaultFontPixelHeight * 0.35
+                    visible:    insideTriggerChip.visible
+                }
+
+                // The chip the mockup asked for. It was withdrawn while nothing
+                // carried a trigger distance; RADAR_FWD_M does, read live off
+                // the aircraft, so it can be drawn honestly now. Absent rather
+                // than greyed when the trigger is unknown -- an indicator that
+                // is always on screen stops being read.
+                Rectangle {
+                    id:         insideTriggerChip
+                    visible:    obstacleBand._insideTrigger
+                    radius:     ScreenTools.defaultBorderRadius
+                    color:      "#e05252"
+                    width:      insideTriggerLabel.implicitWidth + (ScreenTools.defaultFontPixelWidth * 1.2)
+                    height:     insideTriggerLabel.implicitHeight + (ScreenTools.defaultFontPixelWidth * 0.6)
+
+                    QGCLabel {
+                        id:                 insideTriggerLabel
+                        anchors.centerIn:   parent
+                        text:               qsTr("INSIDE TRIGGER")
+                        font.pointSize:     ScreenTools.smallFontPointSize
+                        font.bold:          true
+                        color:              "white"
+                    }
                 }
             }
         }

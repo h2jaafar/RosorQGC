@@ -57,7 +57,15 @@ Item {
             return { kind: "stop", label: qsTr("RADAR SCRIPT FAULT") }
         }
         if (body.indexOf(" ofs +") !== -1) {
-            return { kind: "avoid", label: qsTr("AVOIDING \u2014 %1").arg(body) }
+            // Headline the source and the range only. The offset and its
+            // running total ("ofs +2.0 (tot 5.2)") are detail for the review
+            // list; carrying them in the strip pushed the distance -- the one
+            // part that decides anything -- off the end. Measured on the bench
+            // 2026-09-14: the full line elided to "AVOIDING - D...".
+            return {
+                kind:  "avoid",
+                label: qsTr("AVOIDING \u2014 %1").arg(body.substring(0, body.indexOf(" ofs +")))
+            }
         }
         if (body.indexOf("LOITER") !== -1 || body.indexOf("BRAKE") !== -1) {
             return { kind: "stop", label: qsTr("STOPPED \u2014 %1").arg(body) }
@@ -141,6 +149,12 @@ Item {
         // A stop banner is red, so its text has to invert to stay readable.
         readonly property color _fg: root._kind === "stop" ? "white" : qgcPal.alertText
 
+        // The review hint is the least important thing in the strip, so it is
+        // the first thing to give up its width. On the 7" handheld the toolbar
+        // leaves the banner roughly 25 characters, and "2 more - tap to review"
+        // was eating most of them.
+        readonly property bool _roomy: bannerBg.width > ScreenTools.defaultFontPixelWidth * 46
+
         RowLayout {
             anchors.fill:           parent
             anchors.leftMargin:     ScreenTools.defaultFontPixelWidth
@@ -171,8 +185,14 @@ Item {
 
             QGCLabel {
                 Layout.alignment:   Qt.AlignVCenter
+                // Narrow: keep the count, drop the prose. A queue of unread
+                // events still has to be visible; the invitation to tap does
+                // not, since the whole strip is the tap target.
+                visible:            root._moreCount > 0 || bannerBg._roomy
                 text:               root._moreCount > 0
-                                        ? qsTr("%1 more \u00b7 tap to review").arg(root._moreCount)
+                                        ? (bannerBg._roomy
+                                            ? qsTr("%1 more \u00b7 tap to review").arg(root._moreCount)
+                                            : qsTr("+%1").arg(root._moreCount))
                                         : qsTr("tap to review")
                 color:              bannerBg._fg
                 font.pointSize:     ScreenTools.smallFontPointSize
