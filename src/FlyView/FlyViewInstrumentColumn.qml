@@ -92,6 +92,12 @@ Rectangle {
                 font.pointSize:     ScreenTools.smallFontPointSize
                 color:              qgcPal.windowTransparentText
                 elide:              Text.ElideRight
+                // "GROUND SPD" is the widest caption and was being cut to
+                // "GROUND S..." in a third of the column on the handheld. The
+                // artboard spells all three out, so the caption shrinks to fit
+                // before it is allowed to elide.
+                fontSizeMode:       Text.HorizontalFit
+                minimumPointSize:   ScreenTools.smallFontPointSize * 0.75
             }
 
             RowLayout {
