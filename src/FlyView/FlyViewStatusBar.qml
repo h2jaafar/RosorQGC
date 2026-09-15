@@ -122,6 +122,13 @@ Item {
 
     readonly property bool _batteryVoltageKnown: _battery !== null && !isNaN(_battery.voltage.rawValue)
     readonly property bool _batteryPercentKnown: _battery !== null && !isNaN(_battery.percentRemaining.rawValue)
+    // Reported in seconds by the autopilot when it estimates one at all; NaN and 0 both mean no estimate.
+    readonly property bool _batteryTimeKnown:    _battery !== null && !isNaN(_battery.timeRemaining.rawValue)
+                                                 && _battery.timeRemaining.rawValue > 0
+
+    function _batteryTimeText() {
+        return qsTr("%1 min").arg(Math.round(_battery.timeRemaining.rawValue / 60))
+    }
 
     function _gpsAvailable() {
         return _vehicleAvailable && _activeVehicle.gps && _activeVehicle.gps.telemetryAvailable
@@ -263,13 +270,20 @@ Item {
                 font.pointSize: ScreenTools.smallFontPointSize
             }
 
+            // Percent leads. A client has no idea what 22.4 V means for this pack;
+            // Rosor does, so the voltage stays, one size down. When the autopilot
+            // reports a time remaining it is the most useful number on the bar --
+            // it is what decides when to turn for home -- so it sits right beside.
+            // With no percent the voltage takes the big slot, as before.
             Row {
                 spacing: ScreenTools.defaultFontPixelWidth * 0.4
 
                 QGCLabel {
-                    text:           root._batteryVoltageKnown
-                                        ? root._battery.voltage.rawValue.toFixed(1)
-                                        : qsTr("—")
+                    text:           root._batteryPercentKnown
+                                        ? root._battery.percentRemaining.rawValue.toFixed(0)
+                                        : (root._batteryVoltageKnown
+                                            ? root._battery.voltage.rawValue.toFixed(1)
+                                            : qsTr("—"))
                     color:          qgcPal.text
                     font.pointSize: ScreenTools.largeFontPointSize * 1.1
                     font.bold:      true
@@ -278,19 +292,29 @@ Item {
                 QGCLabel {
                     anchors.bottom:         parent.bottom
                     anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   qsTr("V")
+                    text:                   root._batteryPercentKnown ? qsTr("%") : qsTr("V")
                     color:                  qgcPal.text
                     opacity:                root._labelOpacity
                     font.pointSize:         ScreenTools.defaultFontPointSize
-                    visible:                root._batteryVoltageKnown
+                    visible:                root._batteryPercentKnown || root._batteryVoltageKnown
                 }
 
                 QGCLabel {
                     anchors.bottom:         parent.bottom
                     anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   root._batteryPercentKnown
-                                                ? qsTr("%1%").arg(root._battery.percentRemaining.rawValue.toFixed(0))
+                    text:                   (root._batteryPercentKnown && root._batteryVoltageKnown)
+                                                ? qsTr("%1 V").arg(root._battery.voltage.rawValue.toFixed(1))
                                                 : ""
+                    color:                  qgcPal.text
+                    opacity:                root._labelOpacity
+                    font.pointSize:         ScreenTools.defaultFontPointSize
+                    visible:                text !== ""
+                }
+
+                QGCLabel {
+                    anchors.bottom:         parent.bottom
+                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
+                    text:                   root._batteryTimeKnown ? qsTr("· %1").arg(root._batteryTimeText()) : ""
                     color:                  qgcPal.text
                     opacity:                root._labelOpacity
                     font.pointSize:         ScreenTools.defaultFontPointSize
