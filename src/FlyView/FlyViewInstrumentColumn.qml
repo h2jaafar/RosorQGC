@@ -191,6 +191,12 @@ Rectangle {
             Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 11
             Layout.minimumHeight:   ScreenTools.defaultFontPixelHeight * 6
             radius:                 0
+            // The heading strip is this zone's compass, so it is not optional here. Left to
+            // its own height rule the display drops it: the column squeezes it to about 5.7
+            // font-heights, under the threshold meant for the PipView thumbnail, and the
+            // strip went with it. It costs the column nothing -- it is drawn inside the
+            // display, so only the horizon gives up the room.
+            showHeadingStrip:       true
         }
 
         Rectangle {

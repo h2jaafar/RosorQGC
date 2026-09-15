@@ -23,10 +23,17 @@ Rectangle {
     property real extraInset:       0
     property real extraValuesWidth: 0
 
+    /// Hosts that must keep the heading strip set this true. Left alone it follows the
+    /// available height, so the PipView thumbnail still drops the strip to save its horizon.
+    property bool showHeadingStrip: !_compact
+
     property var  _vehicle:     globals.activeVehicle
     property real _roll:        _vehicle ? _vehicle.roll.rawValue        : 0
     property real _pitch:       _vehicle ? _vehicle.pitch.rawValue       : 0
     property real _heading:     _vehicle ? _vehicle.heading.rawValue     : 0
+    // Heading falls back to 0 with no vehicle, which is a real bearing. Track whether it
+    // means anything so the strip does not label the tape North when nothing is connected.
+    property bool _headingValid: !!_vehicle && !isNaN(_heading) && isFinite(_heading)
     property real _groundSpeed: _vehicle ? _vehicle.groundSpeed.rawValue : 0
     property real _climbRate:   _vehicle ? _vehicle.climbRate.rawValue   : 0
 
@@ -57,7 +64,10 @@ Rectangle {
                                                  : ScreenTools.smallFontPointSize
     readonly property real _tapeWidth:  _compact ? ScreenTools.defaultFontPixelWidth * 4
                                                  : ScreenTools.defaultFontPixelWidth * 5
-    readonly property real _headingH:   _compact ? 0 : ScreenTools.defaultFontPixelHeight * 1.6
+    readonly property real _headingH:   !showHeadingStrip
+                                            ? 0
+                                            : (_compact ? ScreenTools.defaultFontPixelHeight * 1.1
+                                                        : ScreenTools.defaultFontPixelHeight * 1.6)
     readonly property real _radarH:     _compact ? ScreenTools.defaultFontPixelHeight * 1.15
                                                  : ScreenTools.defaultFontPixelHeight * 1.6
     readonly property color _boxBg:     Qt.rgba(0, 0, 0, 0.75)
@@ -317,7 +327,7 @@ Rectangle {
         anchors.left:   parent.left
         anchors.right:  parent.right
         height:         root._headingH
-        visible:        !root._compact
+        visible:        root.showHeadingStrip
         color:          root._tapeBg
 
         Item {
@@ -331,6 +341,9 @@ Rectangle {
                 model: 25
                 delegate: Item {
                     property int tickHeading: (Math.round(root._heading / 15) * 15) + ((index - 12) * 15)
+                    // Labels every 30 deg, not every 15. At this width a 15 deg step puts
+                    // 60px of label into a 58px slot, so they collided.
+                    property bool majorTick: ((((tickHeading % 360) + 360) % 360) % 30) === 0
                     property real delta: {
                         var d = tickHeading - root._heading
                         while (d > 180)  d -= 360
@@ -347,7 +360,7 @@ Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top:              parent.top
                         width:                    1
-                        height:                   parent.height * 0.3
+                        height:                   parent.height * (majorTick ? 0.30 : 0.18)
                         color:                    root._lineColor
                     }
                     QGCLabel {
@@ -363,6 +376,9 @@ Rectangle {
                         }
                         font.pointSize: root._chromeFont
                         color:          root._lineColor
+                        // The ruler is always drawn; the labels assert a bearing, so they
+                        // wait for one rather than naming the tape around a fallback of 0.
+                        visible:        root._headingValid && majorTick
                     }
                 }
             }
@@ -380,7 +396,9 @@ Rectangle {
 
             QGCLabel {
                 anchors.centerIn: parent
-                text:             Math.round(((root._heading % 360) + 360) % 360) + "°"
+                text:             root._headingValid
+                                      ? Math.round(((root._heading % 360) + 360) % 360) + "°"
+                                      : qsTr("--")
                 color:            root._lineColor
                 font.pointSize:   root._chromeFont
             }
