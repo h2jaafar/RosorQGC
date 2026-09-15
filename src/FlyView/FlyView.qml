@@ -425,7 +425,13 @@ Item {
     // It was also unreachable: modernHudEnabled is turned on once as a side
     // effect of enabling Field Mode and never turned back off, so the bench
     // handheld had it on with fieldModeEnabled false and no control left to
-    // clear it. ModernHud.qml and the setting are untouched.
+    // clear it.
+    //
+    // ModernHud.qml is now deleted. Its compass is superseded by the heading
+    // strip in zone 4, and its horizon and side tapes only ever restated what
+    // that display already draws. The modernHudEnabled settings fact survives
+    // in C++ with no reader and no UI; it wants removing with the next change
+    // that already has a reason to touch AppSettings.
 
     UTMSPActivationStatusBar {
         activationStartTimestamp:   UTMSPStateStorage.startTimeStamp

@@ -61,7 +61,6 @@ qt_add_qml_module(FlyViewModule
         RadarAvoidParams.qml
         MultiRotorChecklist.qml
         MultiVehicleList.qml
-        ModernHud.qml
         ObstacleDistanceOverlay.qml
         ObstacleDistanceOverlayMap.qml
         ObstacleDistanceOverlayVideo.qml
