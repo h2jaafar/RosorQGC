@@ -56,20 +56,10 @@ Item {
     property real   _fullItemZorder:    0
     property real   _pipItemZorder:     QGroundControl.zOrderWidgets
 
-    function _applyModernHudFieldDefault() {
-        if (_fieldModeEnabled && !_appSettings.modernHudFieldDefaultApplied.value) {
-            _appSettings.modernHudEnabled.value = true
-            _appSettings.modernHudFieldDefaultApplied.value = true
-        }
-    }
-
-    Component.onCompleted: _applyModernHudFieldDefault()
-    on_FieldModeEnabledChanged: _applyModernHudFieldDefault()
-
-    function _calcCenterViewPort() {
-        var newToolInset = Qt.rect(0, 0, width, height)
-        toolstrip.adjustToolInset(newToolInset)
-    }
+    // The modern-HUD field default is gone with the HUD it enabled. It wrote
+    // modernHudEnabled true the first time Field Mode was switched on and never
+    // wrote it back, which is why the bench handheld was left with the HUD on
+    // and Field Mode off. Nothing reads the setting now.
 
     function dropMainStatusIndicatorTool() {
         toolbar.dropMainStatusIndicatorTool();
@@ -142,7 +132,9 @@ Item {
             anchors.left:           parent.left
             anchors.leftMargin:     _toolsMargin
             anchors.top:            _pipAtTop ? parent.top : undefined
-            anchors.topMargin:      toolbar.height + _toolsMargin
+            // mapHolder already starts below the status bar, so adding the bar's
+            // height again pushed the thumbnail a full bar down into the map.
+            anchors.topMargin:      _toolsMargin
             anchors.bottom:         _pipAtTop ? undefined : parent.bottom
             anchors.bottomMargin:   _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
@@ -222,19 +214,125 @@ Item {
             }
         }
 
-        // Tab to swap the primary flight display with the map. Hidden when a video
-        // stream is present, since PipView is then swapping map and video instead.
-        QGCButton {
-            id:                     pfdSwapTab
-            anchors.top:            parent.top
-            anchors.right:          parent.right
-            anchors.topMargin:      toolbar.height + _toolsMargin
-            anchors.rightMargin:    _toolsMargin
+        // The PFD/Map swap tab is gone. Zone 4 already carries SWAP MAP in its
+        // header, which calls the same _swapPip(), and the artboard draws no
+        // button over the map -- two controls for one action, one of them in a
+        // zone that does not exist.
+
+        // Artboard: Centre and Layers, bottom-left of the map, 44px tall. The
+        // only two controls the drawing puts over the map at all.
+        Row {
+            anchors.left:       parent.left
+            anchors.bottom:     parent.bottom
+            anchors.margins:    ScreenTools.defaultFontPixelWidth * 1.1
+            spacing:            ScreenTools.defaultFontPixelWidth * 0.6
+            z:                  QGroundControl.zOrderWidgets
+
+            Rectangle {
+                id:             centreButton
+                height:         ScreenTools.defaultFontPixelHeight * 1.5
+                width:          Math.max(height, centreLabel.contentWidth + ScreenTools.defaultFontPixelWidth * 2)
+                color:          flyViewPal.window
+                opacity:        _centreEnabled ? 0.94 : 0.5
+                border.color:   flyViewPal.windowShade
+                border.width:   1
+
+                // Nothing to centre on without a position, so the button says so
+                // by going flat rather than moving the map to nowhere.
+                readonly property bool _centreEnabled: _activeVehicle && _activeVehicle.coordinate.isValid
+
+                QGCLabel {
+                    id:                 centreLabel
+                    anchors.centerIn:   parent
+                    text:               qsTr("Centre")
+                    color:              flyViewPal.text
+                }
+
+                QGCMouseArea {
+                    anchors.fill:   parent
+                    enabled:        centreButton._centreEnabled
+                    onClicked:      mapControl.center = _activeVehicle.coordinate
+                }
+            }
+
+            Rectangle {
+                id:             layersButton
+                height:         ScreenTools.defaultFontPixelHeight * 1.5
+                width:          Math.max(height, layersLabel.contentWidth + ScreenTools.defaultFontPixelWidth * 2)
+                color:          flyViewPal.window
+                opacity:        0.94
+                border.color:   flyViewPal.windowShade
+                border.width:   1
+
+                QGCLabel {
+                    id:                 layersLabel
+                    anchors.centerIn:   parent
+                    text:               qsTr("Layers")
+                    color:              flyViewPal.text
+                }
+
+                QGCMouseArea {
+                    anchors.fill:   parent
+                    onClicked:      layersPanel.visible = !layersPanel.visible
+                }
+            }
+        }
+
+        // The map's only layer-like choice is which tile set it draws, so that
+        // is what Layers offers. If the design means overlays -- mission,
+        // terrain, obstacles -- this is the place to grow them.
+        Rectangle {
+            id:                     layersPanel
+            anchors.left:           parent.left
+            anchors.bottom:         parent.bottom
+            anchors.leftMargin:     ScreenTools.defaultFontPixelWidth * 1.1
+            anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 1.5 +
+                                        ScreenTools.defaultFontPixelWidth * 1.8
+            width:                  ScreenTools.defaultFontPixelWidth * 18
+            height:                 layersColumn.height + ScreenTools.defaultFontPixelHeight * 0.6
+            color:                  flyViewPal.window
+            opacity:                0.94
+            border.color:           flyViewPal.windowShade
+            border.width:           1
             z:                      QGroundControl.zOrderWidgets
-            visible:                !QGroundControl.videoManager.hasVideo &&
-                                        QGroundControl.corePlugin.options.flyView.showInstrumentPanel
-            text:                   _mainWindowIsMap ? qsTr("PFD") : qsTr("Map")
-            onClicked:              _pipView._swapPip()
+            visible:                false
+
+            readonly property var _mapTypeFact: QGroundControl.settingsManager.flightMapSettings.mapType
+
+            Column {
+                id:                 layersColumn
+                anchors.centerIn:   parent
+                width:              parent.width - ScreenTools.defaultFontPixelWidth
+
+                Repeater {
+                    model: layersPanel._mapTypeFact ? layersPanel._mapTypeFact.enumStrings : []
+
+                    Rectangle {
+                        width:      layersColumn.width
+                        height:     ScreenTools.defaultFontPixelHeight * 1.4
+                        color:      _selected ? flyViewPal.windowShade : "transparent"
+
+                        readonly property bool _selected:
+                            layersPanel._mapTypeFact && layersPanel._mapTypeFact.valueString === modelData
+
+                        QGCLabel {
+                            anchors.left:           parent.left
+                            anchors.leftMargin:     ScreenTools.defaultFontPixelWidth * 0.5
+                            anchors.verticalCenter: parent.verticalCenter
+                            text:                   modelData
+                            color:                  flyViewPal.text
+                        }
+
+                        QGCMouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                layersPanel._mapTypeFact.value = modelData
+                                layersPanel.visible = false
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         FlyViewWidgetLayer {
@@ -309,17 +407,16 @@ Item {
         }
     }
 
-    ModernHud {
-        id:                 modernHud
-        anchors.top:        toolbar.bottom
-        anchors.bottom:     obstacleBand.top
-        anchors.left:       parent.left
-        anchors.right:      parent.right
-        anchors.margins:    ScreenTools.defaultFontPixelHeight * 0.8
-        z:                  QGroundControl.zOrderWidgets
-        vehicle:            _activeVehicle
-        visible:            _appSettings.modernHudEnabled.value && !QGroundControl.videoManager.fullScreen
-    }
+    // ModernHud is gone from the fly view. It was anchored across the whole
+    // window between the status bar and the band, drawn over the rail, the map
+    // and the instrument column alike -- a zone violation by construction, and
+    // a second primary flight display competing with the one zone 4 already
+    // draws. Its panels were the translucent "--" boxes sitting over the map.
+    //
+    // It was also unreachable: modernHudEnabled is turned on once as a side
+    // effect of enabling Field Mode and never turned back off, so the bench
+    // handheld had it on with fieldModeEnabled false and no control left to
+    // clear it. ModernHud.qml and the setting are untouched.
 
     UTMSPActivationStatusBar {
         activationStartTimestamp:   UTMSPStateStorage.startTimeStamp
