@@ -196,13 +196,18 @@ Item {
         anchors.top:            parent.top
         anchors.bottom:         parent.bottom
         anchors.bottomMargin:   2       // clear the bar's bottom border
-        // 116 of 1280 in the artboard.
-        width:                  ScreenTools.defaultFontPixelWidth * 8
+        // 116 of 1280 in the artboard, but only as a floor. The artboard only
+        // ever draws "ARMED"; "DISARMED" and "NO LINK" are wider than 116px at
+        // this size and were being centred out past the left edge of the screen,
+        // so the chip grows to whatever the longest state actually needs.
+        width:                  Math.max(ScreenTools.defaultFontPixelWidth * 8,
+                                         chipColumn.width + ScreenTools.defaultFontPixelWidth * 1.5)
         color:                  root._vehicleArmedOrInFlight() ? root._good : qgcPal.windowShade
 
         readonly property color _fg: root._vehicleArmedOrInFlight() ? "white" : qgcPal.text
 
         Column {
+            id:                 chipColumn
             anchors.centerIn:   parent
             spacing:            2
 
@@ -318,7 +323,11 @@ Item {
 
                 QGCLabel {
                     text:           root._gpsPrimaryText()
-                    color:          root._severityColor(root._gpsSeverity())
+                    // Same rule as EKF: with no vehicle and no fix there is
+                    // nothing to be green about, so unknown stays neutral
+                    // rather than reading as a good lock on the bench.
+                    color:          root._gpsAvailable() ? root._severityColor(root._gpsSeverity())
+                                                         : qgcPal.text
                     font.pointSize: ScreenTools.largeFontPointSize * 1.1
                     font.bold:      true
                 }
