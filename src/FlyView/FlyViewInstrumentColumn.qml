@@ -224,7 +224,10 @@ Rectangle {
             Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: qgcPal.windowShade }
 
             RateCell {
-                caption:    qsTr("AGL")
+                // "AGL" is an aviation abbreviation; a surveyor reads height above
+                // ground. The caption shrinks to fit rather than eliding, so the
+                // longer label is safe in a third of the column.
+                caption:    qsTr("ABOVE GROUND")
                 value:      root._fmt(root._agl, 1)
                 unit:       qsTr("m")
             }

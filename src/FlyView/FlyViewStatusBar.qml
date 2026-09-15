@@ -356,7 +356,11 @@ Item {
             spacing:                1
 
             QGCLabel {
-                text:           qsTr("EKF")
+                // The artboard labels this cell EKF. Nobody outside the autopilot
+                // community knows what an EKF is, and the value it reports -- OK,
+                // WARN, BAD -- is the health of the position estimate, so that is
+                // what the cell is called. The filter is still what it reads.
+                text:           qsTr("POSITION")
                 color:          qgcPal.text
                 opacity:        root._labelOpacity
                 font.pointSize: ScreenTools.smallFontPointSize
