@@ -90,6 +90,77 @@ Item {
         return _vehicleAvailable && (_activeVehicle.armed || _activeVehicle.flying || _activeVehicle.landing)
     }
 
+    // ------------------------------------------------------------- readiness
+    //
+    // One word for the aircraft's state, in the order a pilot needs to hear it,
+    // and a tone that says whether to act on it. The branching mirrors
+    // MainStatusIndicator so the chip and the status drawer never disagree;
+    // the words are shorter and upper case because the chip is small. What is
+    // reported is the autopilot's own judgement, not a synthesis of GPS and EKF
+    // done here.
+    //
+    // Filled green is reserved for armed. A disarmed aircraft that is READY
+    // shows the word in green on the neutral chip, not a green chip: a green
+    // block is what the artboard draws for ARMED, and whether the motors can
+    // turn is the one thing a pilot must never mistake.
+
+    readonly property bool _commsLost:             _vehicleAvailable
+                                                   && _activeVehicle.vehicleLinkManager
+                                                   && _activeVehicle.vehicleLinkManager.communicationLost
+    readonly property bool _healthChecksSupported: _vehicleAvailable
+                                                   && _activeVehicle.healthAndArmingCheckReport
+                                                   && _activeVehicle.healthAndArmingCheckReport.supported
+
+    /// 0 neutral, 1 good, 2 attention, 3 danger.
+    function _readinessTone() {
+        if (!_vehicleAvailable) {
+            return 0
+        }
+        if (_commsLost) {
+            return 3
+        }
+        if (_healthChecksSupported) {
+            var report = _activeVehicle.healthAndArmingCheckReport
+            if (!report.canArm) {
+                return 3
+            }
+            return report.hasWarningsOrErrors ? 2 : 1
+        }
+        if (_activeVehicle.armed) {
+            return 1
+        }
+        if (_activeVehicle.readyToFlyAvailable) {
+            return _activeVehicle.readyToFly ? 1 : 2
+        }
+        return (_activeVehicle.allSensorsHealthy && _activeVehicle.autopilotPlugin.setupComplete) ? 1 : 2
+    }
+
+    function _readinessText() {
+        if (!_vehicleAvailable) {
+            return qsTr("NO LINK")
+        }
+        if (_commsLost) {
+            return qsTr("COMMS LOST")
+        }
+        if (_activeVehicle.armed) {
+            if (_activeVehicle.flying) {
+                return qsTr("FLYING")
+            }
+            if (_activeVehicle.landing) {
+                return qsTr("LANDING")
+            }
+            return qsTr("ARMED")
+        }
+        if (_healthChecksSupported) {
+            return _activeVehicle.healthAndArmingCheckReport.canArm ? qsTr("READY") : qsTr("NOT READY")
+        }
+        if (_activeVehicle.readyToFlyAvailable) {
+            return _activeVehicle.readyToFly ? qsTr("READY") : qsTr("NOT READY")
+        }
+        return (_activeVehicle.allSensorsHealthy && _activeVehicle.autopilotPlugin.setupComplete)
+                   ? qsTr("READY") : qsTr("NOT READY")
+    }
+
     /// The lowest battery of the pack, by percent when every battery reports one
     /// and by voltage otherwise. A pack is only as good as its worst cell.
     function _selectBattery() {
@@ -217,7 +288,8 @@ Item {
     // ------------------------------------------------------------- mode chip
     //
     // Artboard: a 116px cell, green when armed, carrying the arm state over the
-    // flight mode.
+    // flight mode. The arm state is now the readiness word -- see above -- so a
+    // disarmed aircraft reads READY or NOT READY rather than only DISARMED.
     //
     // It also carries the application menu. The artboard draws no tool button
     // anywhere in its five zones, but removing the stock toolbar removes the
@@ -232,14 +304,24 @@ Item {
         anchors.bottom:         parent.bottom
         anchors.bottomMargin:   2       // clear the bar's bottom border
         // 116 of 1280 in the artboard, but only as a floor. The artboard only
-        // ever draws "ARMED"; "DISARMED" and "NO LINK" are wider than 116px at
-        // this size and were being centred out past the left edge of the screen,
-        // so the chip grows to whatever the longest state actually needs.
+        // ever draws "ARMED"; "NOT READY", "COMMS LOST" and "NO LINK" are wider
+        // than 116px at this size and were being centred out past the left edge
+        // of the screen, so the chip grows to whatever the longest state needs.
         width:                  Math.max(ScreenTools.defaultFontPixelWidth * 8,
                                          chipColumn.width + ScreenTools.defaultFontPixelWidth * 1.5)
-        color:                  root._vehicleArmedOrInFlight() ? root._good : qgcPal.windowShade
+        readonly property int _tone: root._readinessTone()
 
-        readonly property color _fg: root._vehicleArmedOrInFlight() ? "white" : qgcPal.text
+        // Fill only for states that demand it. Danger and attention fill in any
+        // arm state; green fills only when armed. Everything else is the neutral
+        // chip, and READY is carried by the word's colour instead.
+        color:                  _tone === 3 ? root._danger
+                                : _tone === 2 ? root._alert
+                                : (root._vehicleArmedOrInFlight() ? root._good : qgcPal.windowShade)
+
+        // White on the red and green fills; dark text on amber, which is too light
+        // for white; green text for READY on the neutral chip.
+        readonly property color _fg: (_tone === 3 || (_tone === 1 && root._vehicleArmedOrInFlight())) ? "white"
+                                     : (_tone === 1 ? root._good : qgcPal.text)
 
         Column {
             id:                 chipColumn
@@ -248,9 +330,7 @@ Item {
 
             QGCLabel {
                 anchors.horizontalCenter:   parent.horizontalCenter
-                text:                       root._vehicleAvailable
-                                                ? (root._activeVehicle.armed ? qsTr("ARMED") : qsTr("DISARMED"))
-                                                : qsTr("NO LINK")
+                text:                       root._readinessText()
                 color:                      modeChip._fg
                 font.pointSize:             ScreenTools.largeFontPointSize * 0.95
                 font.bold:                  true
