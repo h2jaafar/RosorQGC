@@ -297,7 +297,15 @@ Item {
             z:                      QGroundControl.zOrderWidgets
             visible:                false
 
-            readonly property var _mapTypeFact: QGroundControl.settingsManager.flightMapSettings.mapType
+            readonly property var _mapTypeFact:     QGroundControl.settingsManager.flightMapSettings.mapType
+            readonly property var _mapProviderFact: QGroundControl.settingsManager.flightMapSettings.mapProvider
+
+            // mapType is a plain string fact with no enums -- the types a
+            // provider actually offers come from the map engine, keyed by the
+            // provider name, the same way the Map settings page builds its list.
+            readonly property var _mapTypes: _mapProviderFact
+                                                ? QGroundControl.mapEngineManager.mapTypeList(_mapProviderFact.rawValue)
+                                                : []
 
             Column {
                 id:                 layersColumn
@@ -305,7 +313,7 @@ Item {
                 width:              parent.width - ScreenTools.defaultFontPixelWidth
 
                 Repeater {
-                    model: layersPanel._mapTypeFact ? layersPanel._mapTypeFact.enumStrings : []
+                    model: layersPanel._mapTypes
 
                     Rectangle {
                         width:      layersColumn.width
@@ -313,7 +321,7 @@ Item {
                         color:      _selected ? flyViewPal.windowShade : "transparent"
 
                         readonly property bool _selected:
-                            layersPanel._mapTypeFact && layersPanel._mapTypeFact.valueString === modelData
+                            layersPanel._mapTypeFact && layersPanel._mapTypeFact.rawValue === modelData
 
                         QGCLabel {
                             anchors.left:           parent.left
@@ -326,7 +334,7 @@ Item {
                         QGCMouseArea {
                             anchors.fill: parent
                             onClicked: {
-                                layersPanel._mapTypeFact.value = modelData
+                                layersPanel._mapTypeFact.rawValue = modelData
                                 layersPanel.visible = false
                             }
                         }
