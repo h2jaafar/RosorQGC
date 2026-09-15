@@ -90,6 +90,17 @@ Item {
         bottomEdgeLeftInset:    _pipView.bottomEdgeLeftInset
     }
 
+    QGCPalette { id: flyViewPal }
+
+    // Was a child of the stock toolbar, which zone 1 replaced. It still overlays
+    // the top bar, and is sized by it as before -- the control draws its small
+    // bar as a fraction of its own height, so it needs the bar's geometry, not
+    // the view's.
+    ParameterDownloadProgress {
+        anchors.fill:   toolbar
+        z:              QGroundControl.zOrderTopMost
+    }
+
     // The map's zone, not the whole window. Main.dc.html's rule is five fixed
     // zones that cannot overlap, so the map is bounded by the rail, the column,
     // the status bar and the obstacle band rather than running underneath them
@@ -151,6 +162,66 @@ Item {
             property real bottomEdgeLeftInset: (visible && !_pipAtTop) ? height + anchors.bottomMargin : 0
         }
 
+        // Guided-action confirmation, moved here from the stock toolbar's centre
+        // panel when zone 1 replaced it. Main.dc.html has no cell for it, but a
+        // confirmation is transient rather than a zone, so it overlays the map
+        // and is bounded by mapHolder -- it can never cover the rail, the
+        // instrument column or the obstacle band.
+        //
+        // The message display stays a sibling rather than a child so it is not
+        // clipped, and messageFadeTimer / messageOpacityAnimation keep their
+        // names: GuidedActionConfirm drives them by id from its host.
+        GuidedActionConfirm {
+            id:                         guidedActionConfirm
+            anchors.horizontalCenter:   parent.horizontalCenter
+            anchors.top:                parent.top
+            anchors.topMargin:          _toolsMargin
+            height:                     toolbar.height
+            z:                          QGroundControl.zOrderTopMost
+            guidedController:           globals.guidedControllerFlyView
+            guidedValueSlider:          _guidedValueSlider
+            utmspSliderTrigger:         utmspSendActTrigger
+            messageDisplay:             guidedActionMessageDisplay
+            visible:                    !_fieldModeEnabled
+        }
+
+        Rectangle {
+            id:                         guidedActionMessageDisplay
+            anchors.top:                guidedActionConfirm.bottom
+            anchors.topMargin:          _toolsMargin
+            anchors.horizontalCenter:   parent.horizontalCenter
+            width:                      guidedMessageLabel.contentWidth + (_toolsMargin * 2)
+            height:                     guidedMessageLabel.contentHeight + (_toolsMargin * 2)
+            color:                      flyViewPal.windowTransparent
+            radius:                     ScreenTools.defaultBorderRadius
+            z:                          QGroundControl.zOrderTopMost
+            visible:                    guidedActionConfirm.visible
+
+            QGCLabel {
+                id:         guidedMessageLabel
+                x:          _toolsMargin
+                y:          _toolsMargin
+                width:      ScreenTools.defaultFontPixelWidth * 30
+                wrapMode:   Text.WordWrap
+                text:       guidedActionConfirm.message
+            }
+
+            PropertyAnimation {
+                id:         messageOpacityAnimation
+                target:     guidedActionMessageDisplay
+                property:   "opacity"
+                from:       1
+                to:         0
+                duration:   500
+            }
+
+            Timer {
+                id:             messageFadeTimer
+                interval:       4000
+                onTriggered:    messageOpacityAnimation.start()
+            }
+        }
+
         // Tab to swap the primary flight display with the map. Hidden when a video
         // stream is present, since PipView is then swapping map and video instead.
         QGCButton {
@@ -174,13 +245,12 @@ Item {
             anchors.right:          guidedValueSlider.visible ? guidedValueSlider.left : parent.right
             anchors.margins:        _widgetMargin
             anchors.topMargin:      toolbar.height + _widgetMargin
-            // Both bottom strips have to be reserved, not just the status bar.
             // The obstacle band is drawn at zOrderTopMost, so anything laid out
             // underneath it is not merely cramped, it is covered: the compass
             // rose and the values bar were being positioned into the band's
-            // rows and hidden by it.
-            bottomRowReservedHeight: (criticalStatusBar ? criticalStatusBar.height : 0) +
-                                     (obstacleBand ? obstacleBand.height : 0) +
+            // rows and hidden by it. It is the only bottom strip now that the
+            // critical status bar has moved into zone 1.
+            bottomRowReservedHeight: (obstacleBand ? obstacleBand.height : 0) +
                                      _widgetMargin
             z:                      _fullItemZorder + 2 // we need to add one extra layer for map 3d viewer (normally was 1)
             parentToolInsets:       _toolInsets
@@ -242,7 +312,7 @@ Item {
     ModernHud {
         id:                 modernHud
         anchors.top:        toolbar.bottom
-        anchors.bottom:     criticalStatusBar.top
+        anchors.bottom:     obstacleBand.top
         anchors.left:       parent.left
         anchors.right:      parent.right
         anchors.margins:    ScreenTools.defaultFontPixelHeight * 0.8
@@ -263,18 +333,18 @@ Item {
         }
     }
 
-    CriticalStatusBar {
-        id:                 criticalStatusBar
-        anchors.left:       parent.left
-        anchors.right:      parent.right
-        anchors.bottom:     parent.bottom
-        z:                  QGroundControl.zOrderTopMost
-        vehicle:            _activeVehicle
-        fieldModeEnabled:   _fieldModeEnabled
-    }
+    // The critical status bar is gone. Main.dc.html has five zones and none of
+    // them is a strip along the bottom of the window: battery, GPS/RTK and EKF
+    // belong to zone 1 and are drawn there now rather than in two places at
+    // once, and the radar altitude and obstacle rate it also carried are
+    // already in the band below.
+    //
+    // CriticalStatusBar.qml itself is untouched. The one thing it carried that
+    // nothing replaces is the configurable named-float row, which the artboard
+    // has no zone for; it can be put back behind whatever the design grows.
 
-    // Obstacle band: a full-width strip along the bottom, above the critical
-    // status bar. The closest-obstacle distance is the largest number on the
+    // Obstacle band: a full-width strip along the bottom of the view. The
+    // closest-obstacle distance is the largest number on the
     // screen because it is the one that decides whether to stop.
     //
     // Fully opaque on purpose. The band sits over the map at zOrderTopMost, and
@@ -287,7 +357,7 @@ Item {
         id:                     obstacleBand
         anchors.left:           parent.left
         anchors.right:          parent.right
-        anchors.bottom:         criticalStatusBar.top
+        anchors.bottom:         parent.bottom
         // 168 of 800 in the artboard.
         height:                 ScreenTools.defaultFontPixelHeight * 5.8
         z:                      QGroundControl.zOrderTopMost
@@ -602,16 +672,16 @@ Item {
         onSwapRequested:    _pipView._swapPip()
     }
 
-    FlyViewToolBar {
-        id:                 toolbar
-        guidedValueSlider:  _guidedValueSlider
-        utmspSliderTrigger: utmspSendActTrigger
-        visible:            !QGroundControl.videoManager.fullScreen
-        parameterFavoritesVisible: _showParameterFavoritesPanel
-        onToggleParameterFavorites: _showParameterFavoritesPanel = !_showParameterFavoritesPanel
-        onShowMissionQuickVerify: openMissionQuickVerify()
-        onShowObstacleProfile: openObstacleProfile()
-        onReviewVehicleMessages: dropMainStatusIndicatorTool()
+    // Zone 1 of Main.dc.html. The stock toolbar is gone: its indicator row, its
+    // tool buttons and the Flickable around them have no zone in the drawing,
+    // and the three readouts worth keeping -- battery, GPS/RTK, EKF -- are what
+    // the status bar draws, at the size the artboard gives them.
+    //
+    // Still called `toolbar` because every zone in this file anchors to it.
+    FlyViewStatusBar {
+        id:                         toolbar
+        visible:                    !QGroundControl.videoManager.fullScreen
+        onReviewVehicleMessages:    dropMainStatusIndicatorTool()
     }
 
     function openObstacleProfile() {
@@ -657,7 +727,7 @@ Item {
         id:                     parameterFavoritesPanel
         anchors.top:            parent.top
         anchors.right:          parent.right
-        anchors.bottom:         criticalStatusBar.top
+        anchors.bottom:         obstacleBand.top
         anchors.topMargin:      toolbar.height
         anchors.margins:        ScreenTools.defaultFontPixelWidth
         width:                  preferredWidth

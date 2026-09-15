@@ -34,6 +34,8 @@ qt_add_qml_module(FlyViewModule
         FlyViewPfdPane.qml
         FlyViewActionRail.qml
         FlyViewInstrumentColumn.qml
+        FlyViewStatusBar.qml
+        VehicleEkfHealth.qml
         MissionProgressBlock.qml
         FlyViewMissionCompleteDialog.qml
         FlyViewPreFlightChecklistPopup.qml

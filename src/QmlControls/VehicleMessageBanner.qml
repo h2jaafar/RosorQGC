@@ -18,7 +18,18 @@ Item {
     /// Emitted when the pilot taps the banner to read the full message list.
     signal reviewRequested()
 
+    /// Stack the review count under the message instead of beside it.
+    ///
+    /// The fly view's zone-1 alert cell is 300px of 1280 and cannot fit both on
+    /// one line; across the full width of the toolbar they read better side by
+    /// side. Same content either way.
+    property bool compact: false
+
     readonly property bool hasMessage: _message !== ""
+
+    readonly property string _reviewText: _moreCount > 0
+                                            ? qsTr("%1 more · tap to review").arg(_moreCount)
+                                            : qsTr("tap to review")
 
     property string _message:   ""
     property int    _moreCount: 0
@@ -160,22 +171,36 @@ Item {
                 fillMode:               Image.PreserveAspectFit
             }
 
-            QGCLabel {
+            ColumnLayout {
                 Layout.fillWidth:   true
                 Layout.alignment:   Qt.AlignVCenter
-                text:               root._message
-                color:              bannerBg._fg
-                elide:              Text.ElideRight
-                maximumLineCount:   1
+                spacing:            0
+
+                QGCLabel {
+                    Layout.fillWidth:   true
+                    text:               root._message
+                    color:              bannerBg._fg
+                    elide:              Text.ElideRight
+                    maximumLineCount:   1
+                }
+
+                QGCLabel {
+                    Layout.fillWidth:   true
+                    text:               root._reviewText
+                    color:              bannerBg._fg
+                    font.pointSize:     ScreenTools.smallFontPointSize
+                    elide:              Text.ElideRight
+                    maximumLineCount:   1
+                    visible:            root.compact
+                }
             }
 
             QGCLabel {
                 Layout.alignment:   Qt.AlignVCenter
-                text:               root._moreCount > 0
-                                        ? qsTr("%1 more \u00b7 tap to review").arg(root._moreCount)
-                                        : qsTr("tap to review")
+                text:               root._reviewText
                 color:              bannerBg._fg
                 font.pointSize:     ScreenTools.smallFontPointSize
+                visible:            !root.compact
             }
         }
 
