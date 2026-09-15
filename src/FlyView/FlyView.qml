@@ -142,10 +142,12 @@ Item {
             _pipSize:               parent.width * (_pipAtTop ? 0.28 : 0.2)
             item1:                  mapControl
             item2:                  QGroundControl.videoManager.hasVideo ? videoControl : pfdControl
-            show:                   QGroundControl.videoManager.hasVideo
-                                        ? (!QGroundControl.videoManager.fullScreen &&
-                                           (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState))
-                                        : (pfdControl.pipState.state === pfdControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
+            // Main.dc.html draws no thumbnail over the map, and zone 4 already carries the
+            // flight display. Hiding PipView also takes away the triple-chevron handle it
+            // parks on the map while collapsed, which was the last thing standing in the
+            // map zone. The item stays: mapControl and pfdControl bind to its pipState
+            // wiring, and SWAP MAP still calls _swapPip() to trade the full-window pane.
+            show:                   false
             z:                      QGroundControl.zOrderWidgets
 
             // Pushes the takeoff/return column below the thumbnail when it sits top-left.
