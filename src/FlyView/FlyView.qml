@@ -174,7 +174,21 @@ Item {
             guidedValueSlider:          _guidedValueSlider
             utmspSliderTrigger:         utmspSendActTrigger
             messageDisplay:             guidedActionMessageDisplay
-            visible:                    !_fieldModeEnabled
+
+            // No `visible` binding here on purpose. GuidedActionConfirm already
+            // declares its own -- false unless UTMSP is driving it -- and then
+            // sets visible imperatively from _reallyShow() and
+            // confirmCancelled(). The old binding at this site,
+            // `visible: !_fieldModeEnabled`, overrode that default and forced it
+            // true whenever Field Mode was off, so an empty confirmation box sat
+            // on screen with nothing to confirm. It did the same in the toolbar
+            // it came from; it was just less obvious in a corner than it is over
+            // the middle of the map.
+            //
+            // Field Mode no longer suppresses the confirmation as a side effect
+            // of that override. If it should, that belongs in the guided
+            // controller as a deliberate rule, not in a visibility binding that
+            // also breaks the idle state.
         }
 
         Rectangle {
