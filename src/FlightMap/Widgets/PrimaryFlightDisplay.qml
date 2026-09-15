@@ -27,6 +27,11 @@ Rectangle {
     /// available height, so the PipView thumbnail still drops the strip to save its horizon.
     property bool showHeadingStrip: !_compact
 
+    /// Likewise for the roll scale, the roll pointer and the roll/pitch numerals. These are
+    /// the horizon's own readouts and nothing else on screen repeats them, unlike the side
+    /// tapes, which the instrument column already states as GROUND SPD, AGL and VERT SPD.
+    property bool showAttitudeChrome: !_compact
+
     property var  _vehicle:     globals.activeVehicle
     property real _roll:        _vehicle ? _vehicle.roll.rawValue        : 0
     property real _pitch:       _vehicle ? _vehicle.pitch.rawValue       : 0
@@ -100,7 +105,7 @@ Rectangle {
             anchors.fill:    parent
             rotation:        -root._roll
             transformOrigin: Item.Center
-            visible:         !root._compact
+            visible:         root.showAttitudeChrome
 
             onWidthChanged:  requestPaint()
             onHeightChanged: requestPaint()
@@ -146,7 +151,7 @@ Rectangle {
         Canvas {
             id:              rollPointer
             anchors.fill:    parent
-            visible:         !root._compact
+            visible:         root.showAttitudeChrome
 
             onWidthChanged:  requestPaint()
             onHeightChanged: requestPaint()
@@ -230,7 +235,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top:              parent.top
             anchors.topMargin:        2
-            visible:                  !root._compact
+            visible:                  root.showAttitudeChrome
             color:                    Qt.rgba(0, 0, 0, 0.62)
             width:                    rollValue.implicitWidth + ScreenTools.defaultFontPixelWidth
             height:                   rollValue.implicitHeight + 2
@@ -249,7 +254,7 @@ Rectangle {
             anchors.horizontalCenter:     parent.horizontalCenter
             anchors.verticalCenter:       parent.verticalCenter
             anchors.verticalCenterOffset: parent.height * 0.14
-            visible:                      !root._compact
+            visible:                      root.showAttitudeChrome
             color:                        Qt.rgba(0, 0, 0, 0.62)
             width:                        pitchValue.implicitWidth + ScreenTools.defaultFontPixelWidth
             height:                       pitchValue.implicitHeight + 2

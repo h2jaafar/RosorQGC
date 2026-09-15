@@ -197,6 +197,11 @@ Rectangle {
             // strip went with it. It costs the column nothing -- it is drawn inside the
             // display, so only the horizon gives up the room.
             showHeadingStrip:       true
+            // Same gate, same cause: the roll scale, the roll pointer and the roll/pitch
+            // numerals are what the artboard's horizon note asks for, and the column was
+            // hiding all four. The side tapes stay off -- the rates grid directly below
+            // already reads ground speed, AGL and vertical speed.
+            showAttitudeChrome:     true
         }
 
         Rectangle {
