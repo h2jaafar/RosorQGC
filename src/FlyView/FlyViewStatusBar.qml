@@ -15,6 +15,11 @@ import QGroundControl.Controls
 /// The readouts are deliberately the same three the removed CriticalStatusBar
 /// carried along the bottom of the window. The artboard has no zone for that
 /// strip, so its content moves here rather than being shown twice.
+///
+/// One readout is not in the drawing: HOME, the distance and direction back
+/// to the launch point. It is the number a pilot wants after the battery and
+/// before anything else when deciding whether to turn back, and no zone
+/// carried it. It sits beside the battery for that reason.
 Item {
     id:     root
     width:  parent.width
@@ -128,6 +133,29 @@ Item {
 
     function _batteryTimeText() {
         return qsTr("%1 min").arg(Math.round(_battery.timeRemaining.rawValue / 60))
+    }
+
+    // Distance is NaN until the vehicle has a home position. The bearing the vehicle
+    // reports is absolute; it is turned nose-relative before it is drawn, because
+    // "which way do I turn" is the question an arrow on a status bar answers.
+    readonly property bool _homeKnown:        _vehicleAvailable && !isNaN(_activeVehicle.distanceToHome.rawValue)
+    readonly property bool _homeBearingKnown: _homeKnown
+                                              && !isNaN(_activeVehicle.headingToHome.rawValue)
+                                              && !isNaN(_activeVehicle.heading.rawValue)
+    readonly property real _homeRelativeBearing: _homeBearingKnown
+                                                 ? (((_activeVehicle.headingToHome.rawValue - _activeVehicle.heading.rawValue) % 360) + 360) % 360
+                                                 : 0
+
+    function _homeDistanceValue() {
+        if (!_homeKnown) {
+            return qsTr("—")
+        }
+        var d = _activeVehicle.distanceToHome.rawValue
+        return d >= 1000 ? (d / 1000).toFixed(1) : d.toFixed(0)
+    }
+
+    function _homeDistanceUnit() {
+        return (_homeKnown && _activeVehicle.distanceToHome.rawValue >= 1000) ? qsTr("km") : qsTr("m")
     }
 
     function _gpsAvailable() {
@@ -319,6 +347,64 @@ Item {
                     opacity:                root._labelOpacity
                     font.pointSize:         ScreenTools.defaultFontPointSize
                     visible:                text !== ""
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width:                  1
+            height:                 readouts.height * 0.6
+            color:                  qgcPal.windowShade
+        }
+
+        // --------------------------------------------------------------- home
+        //
+        // Not in the artboard -- see the file comment. The arrow is nose-relative:
+        // straight up means home is dead ahead. That is the frame a pilot steers
+        // in; the map below already gives the north-up one.
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing:                1
+
+            QGCLabel {
+                text:           qsTr("HOME")
+                color:          qgcPal.text
+                opacity:        root._labelOpacity
+                font.pointSize: ScreenTools.smallFontPointSize
+            }
+
+            Row {
+                spacing: ScreenTools.defaultFontPixelWidth * 0.4
+
+                QGCLabel {
+                    text:           root._homeDistanceValue()
+                    color:          qgcPal.text
+                    font.pointSize: ScreenTools.largeFontPointSize * 1.1
+                    font.bold:      true
+                }
+
+                QGCLabel {
+                    anchors.bottom:         parent.bottom
+                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
+                    text:                   root._homeDistanceUnit()
+                    color:                  qgcPal.text
+                    opacity:                root._labelOpacity
+                    font.pointSize:         ScreenTools.defaultFontPointSize
+                    visible:                root._homeKnown
+                }
+
+                QGCColoredImage {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width:                  ScreenTools.defaultFontPixelHeight * 0.9
+                    height:                 width
+                    sourceSize.height:      height
+                    source:                 "/res/ArrowRight.svg"
+                    fillMode:               Image.PreserveAspectFit
+                    color:                  qgcPal.text
+                    // ArrowRight points right at rest; minus 90 puts a 0 deg bearing straight up.
+                    rotation:               root._homeRelativeBearing - 90
+                    visible:                root._homeBearingKnown
                 }
             }
         }
