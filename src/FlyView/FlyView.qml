@@ -161,8 +161,8 @@ Item {
         // instrument column or the obstacle band.
         //
         // The message display stays a sibling rather than a child so it is not
-        // clipped, and messageFadeTimer / messageOpacityAnimation keep their
-        // names: GuidedActionConfirm drives them by id from its host.
+        // clipped. The control owns its own fade timer and animation; this file
+        // only supplies the item to fade, via messageDisplay.
         GuidedActionConfirm {
             id:                         guidedActionConfirm
             anchors.horizontalCenter:   parent.horizontalCenter
@@ -210,21 +210,6 @@ Item {
                 width:      ScreenTools.defaultFontPixelWidth * 30
                 wrapMode:   Text.WordWrap
                 text:       guidedActionConfirm.message
-            }
-
-            PropertyAnimation {
-                id:         messageOpacityAnimation
-                target:     guidedActionMessageDisplay
-                property:   "opacity"
-                from:       1
-                to:         0
-                duration:   500
-            }
-
-            Timer {
-                id:             messageFadeTimer
-                interval:       4000
-                onTriggered:    messageOpacityAnimation.start()
             }
         }
 

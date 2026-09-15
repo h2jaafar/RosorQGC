@@ -75,6 +75,23 @@ Item {
         onTriggered:    _reallyShow()
     }
 
+    // The message fade lives with the show and cancel paths that drive it. The host owns only
+    // the item being faded, which it hands over as `messageDisplay`.
+    PropertyAnimation {
+        id:         messageOpacityAnimation
+        target:     control.messageDisplay
+        property:   "opacity"
+        from:       1
+        to:         0
+        duration:   500
+    }
+
+    Timer {
+        id:             messageFadeTimer
+        interval:       4000
+        onTriggered:    messageOpacityAnimation.start()
+    }
+
     QGCPalette { id: qgcPal }
 
     RowLayout {
