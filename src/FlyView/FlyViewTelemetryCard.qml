@@ -125,6 +125,20 @@ Rectangle {
         }
     }
 
+    // With nothing connected the card keeps its slot and says so once,
+    // instead of four dashes: the layout a new pilot learns is the one they
+    // will fly with.
+    QGCLabel {
+        anchors.centerIn:       parent
+        width:                  parent.width - ScreenTools.defaultFontPixelWidth * 2
+        horizontalAlignment:    Text.AlignHCenter
+        wrapMode:               Text.WordWrap
+        text:                   qsTr("Telemetry appears when the aircraft connects")
+        font.pointSize:         ScreenTools.smallFontPointSize
+        color:                  root._label
+        visible:                !root._vehicleAvailable
+    }
+
     GridLayout {
         anchors.fill:       parent
         anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.9
@@ -134,6 +148,7 @@ Rectangle {
         columns:            2
         rowSpacing:         ScreenTools.defaultFontPixelHeight * 0.1
         columnSpacing:      ScreenTools.defaultFontPixelWidth
+        visible:            root._vehicleAvailable
 
         Cell {
             caption:    qsTr("HEIGHT")

@@ -85,6 +85,7 @@ Item {
         bottomEdgeLeftInset:    navCard.height + _toolsMargin * 2
         bottomEdgeCenterInset:  mapButtons.height + _toolsMargin * 2
         bottomEdgeRightInset:   telemetryCard.height + _toolsMargin * 2
+        rightEdgeCenterInset:   videoToggle.width + _toolsMargin * 2.4
     }
 
     QGCPalette { id: flyViewPal }
@@ -433,6 +434,123 @@ Item {
     // that display already draws. The modernHudEnabled settings fact survives
     // in C++ with no reader and no UI; it wants removing with the next change
     // that already has a reason to touch AppSettings.
+
+    // ------------------------------------------------------------ connect state
+    // What the screen says before an aircraft is found: one sentence, one
+    // instruction, one action -- the companies' strongest stranger-test
+    // feature, and the state v1 never drew. The viewport dims under it so the
+    // card is the only thing asking for attention; every card and button
+    // around it stays in its slot, greyed, so the layout a new pilot learns
+    // is the one they will fly with.
+    Rectangle {
+        id:             connectScrim
+        anchors.fill:   parent
+        color:          Qt.rgba(0.125, 0.141, 0.165, 0.35)
+        z:              QGroundControl.zOrderTopMost + 1
+        visible:        !_activeVehicle && !QGroundControl.videoManager.fullScreen
+
+        // Swallow map gestures while the card is up; the map is not the task yet.
+        MouseArea { anchors.fill: parent }
+
+        Rectangle {
+            id:                 connectCard
+            anchors.centerIn:   parent
+            width:              ScreenTools.defaultFontPixelWidth * 34.7
+            height:             connectColumn.height + ScreenTools.defaultFontPixelHeight * 1.8
+            radius:             ScreenTools.defaultFontPixelHeight * 0.25
+            color:              flyViewPal.window
+
+            ColumnLayout {
+                id:                 connectColumn
+                anchors.centerIn:   parent
+                width:              parent.width - ScreenTools.defaultFontPixelWidth * 4
+                spacing:            ScreenTools.defaultFontPixelHeight * 0.45
+
+                QGCColoredImage {
+                    Layout.alignment:       Qt.AlignHCenter
+                    Layout.preferredWidth:  ScreenTools.defaultFontPixelHeight * 2.2
+                    Layout.preferredHeight: Layout.preferredWidth
+                    sourceSize.height:      Layout.preferredHeight
+                    source:                 "/qmlimages/vehicleArrowOpaque.svg"
+                    fillMode:               Image.PreserveAspectFit
+                    color:                  flyViewPal.text
+                }
+
+                QGCLabel {
+                    Layout.alignment:   Qt.AlignHCenter
+                    text:               qsTr("Connect the aircraft")
+                    font.pointSize:     ScreenTools.largeFontPointSize * 1.3
+                    font.bold:          true
+                    color:              flyViewPal.text
+                }
+
+                QGCLabel {
+                    Layout.alignment:       Qt.AlignHCenter
+                    Layout.fillWidth:       true
+                    horizontalAlignment:    Text.AlignHCenter
+                    wrapMode:               Text.WordWrap
+                    text:                   qsTr("Power on the aircraft. This controller pairs with it by itself.")
+                    color:                  flyViewPal.windowTransparentText
+                }
+
+                Rectangle {
+                    Layout.alignment:       Qt.AlignHCenter
+                    Layout.topMargin:       ScreenTools.defaultFontPixelHeight * 0.2
+                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.4
+                    Layout.preferredWidth:  connectLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 3
+                    radius:                 ScreenTools.defaultFontPixelHeight * 0.19
+                    color:                  connectMouse.pressed ? flyViewPal.buttonHighlight : "#3A9BDC"
+
+                    QGCLabel {
+                        id:                 connectLabel
+                        anchors.centerIn:   parent
+                        text:               qsTr("Connect manually")
+                        font.bold:          true
+                        color:              "white"
+                    }
+
+                    QGCMouseArea {
+                        id:             connectMouse
+                        anchors.fill:   parent
+                        onClicked:      mainWindow.showToolSelectDialog()
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------- video toggle
+    // DJI's right-edge toggle. With a stream it swaps the map and the video;
+    // without one it swaps the map and the flight display, which is what
+    // PipView's second pane already is. The label says which, so the button
+    // never promises a camera the aircraft does not carry.
+    Rectangle {
+        id:                     videoToggle
+        anchors.right:          parent.right
+        anchors.rightMargin:    _toolsMargin * 1.4
+        anchors.verticalCenter: parent.verticalCenter
+        width:                  ScreenTools.defaultFontPixelHeight * 1.55
+        height:                 ScreenTools.defaultFontPixelHeight * 1.8
+        radius:                 ScreenTools.defaultFontPixelHeight * 0.19
+        color:                  videoMouse.pressed ? Qt.rgba(0.25, 0.28, 0.33, 0.95)
+                                                   : Qt.rgba(0.125, 0.141, 0.165, 0.88)
+        z:                      QGroundControl.zOrderTopMost
+        visible:                !QGroundControl.videoManager.fullScreen
+
+        QGCLabel {
+            anchors.centerIn:   parent
+            text:               QGroundControl.videoManager.hasVideo ? qsTr("Video") : qsTr("PFD")
+            font.pointSize:     ScreenTools.smallFontPointSize
+            color:              _activeVehicle ? "white" : "#6c7175"
+        }
+
+        QGCMouseArea {
+            id:             videoMouse
+            anchors.fill:   parent
+            enabled:        _activeVehicle
+            onClicked:      _pipView._swapPip()
+        }
+    }
 
     UTMSPActivationStatusBar {
         activationStartTimestamp:   UTMSPStateStorage.startTimeStamp
