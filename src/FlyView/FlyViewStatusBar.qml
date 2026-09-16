@@ -4,32 +4,35 @@ import QtQuick.Layouts
 import QGroundControl
 import QGroundControl.Controls
 
-/// Zone 1 of Main.dc.html: the fly view's top status bar.
+/// v3's status bar: a translucent strip across the top of the viewport, the
+/// shape DJI Fly, DJI Pilot 2, Auterion Mission Control and Skydio all use.
 ///
-/// The artboard gives the top 76px of 800 to four things and nothing else -- an
-/// armed/mode chip, the three numbers a pilot checks before and during a flight
-/// (battery, GPS/RTK, EKF), and a standing alert panel. It replaces the stock
-/// QGC toolbar, whose indicator row packed a dozen competing items into the
-/// same strip and left the important three the same size as the rest.
+/// Left to right, the order a pilot needs: the state word as a pill (NO LINK,
+/// COMMS LOST, READY, NOT READY, ARMED, FLYING, LANDING), then ONE status
+/// sentence -- the newest standing vehicle message when there is one, in
+/// amber, otherwise a calm line saying what the aircraft is doing -- then, on
+/// the right, battery with minutes remaining, GNSS fix and satellites, and
+/// the application menu. Nothing else. The numbers a pilot glances at in
+/// flight live in the telemetry card; the obstacle readout lives in the nav
+/// card; this bar is for state.
 ///
-/// The readouts are deliberately the same three the removed CriticalStatusBar
-/// carried along the bottom of the window. The artboard has no zone for that
-/// strip, so its content moves here rather than being shown twice.
-///
-/// One readout is not in the drawing: HOME, the distance and direction back
-/// to the launch point. It is the number a pilot wants after the battery and
-/// before anything else when deciding whether to turn back, and no zone
-/// carried it. It sits beside the battery for that reason.
+/// Filled green is reserved for armed. A disarmed aircraft that is READY shows
+/// the word in green on the neutral pill, not a green pill: a green block is
+/// what means the motors can turn, and that is the one thing a pilot must
+/// never mistake.
 Item {
     id:     root
     width:  parent.width
-    // 76 of 800 in the artboard.
-    height: ScreenTools.defaultFontPixelHeight * 2.6
+    // 56 of 800 in the artboard.
+    height: ScreenTools.defaultFontPixelHeight * 1.75
 
-    /// Emitted when the pilot taps the alert panel to read the full list.
+    /// The fly view's mission controller, for the calm sentence's progress.
+    property var missionController: null
+
+    /// Emitted when the pilot taps the alert to read the full list.
     signal reviewVehicleMessages()
 
-    /// Show a critical vehicle message in the alert panel.
+    /// Show a critical vehicle message in the status sentence slot.
     function showVehicleMessage(message) {
         alertBanner.show(message)
     }
@@ -39,42 +42,42 @@ Item {
         statusDrawerHost.dropMainStatusIndicator()
     }
 
+    // MainStatusIndicator writes this from its own mainStatusText() -- it was
+    // declared by the stock toolbar that used to host it, and has been an
+    // "Invalid write to global property" on every launch since that toolbar
+    // went. A component resolves ids and properties through the context that
+    // created it, so declaring it on the host is what the indicator expects.
+    // Nothing here reads it.
+    property color _mainStatusBGColor: qgcPal.brandingPurple
+
     readonly property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
     readonly property var _rtk:           QGroundControl.gpsRtk
 
     readonly property bool _vehicleAvailable: _activeVehicle !== null && _activeVehicle !== undefined
 
-    // Design palette, as in the obstacle band: surfaces and text come from
-    // qgcPal so the bar follows the Indoor/Outdoor theme, while the semantic
-    // accents are fixed -- they mean danger / good / alert wherever they appear.
-    readonly property color _danger: "#b52b2b"
-    readonly property color _good:   "#008f2d"
-    readonly property color _alert:  "#eecc44"
-
-    // The artboard's label grey against either theme's window colour.
-    readonly property real _labelOpacity: 0.65
+    // Semantic accents are fixed -- they mean danger / good / alert wherever
+    // they appear. The chrome tone is #20242a at 0.90, fixed rather than
+    // themed because the bar sits over imagery in either theme.
+    readonly property color _danger:  "#b52b2b"
+    readonly property color _good:    "#008f2d"
+    readonly property color _alert:   "#eecc44"
+    readonly property color _chrome:  Qt.rgba(0.125, 0.141, 0.165, 0.90)
+    readonly property color _neutral: Qt.rgba(1, 1, 1, 0.14)
+    readonly property color _fg:      "#ffffff"
+    readonly property color _fgDim:   "#c9ccce"
 
     QGCPalette { id: qgcPal }
 
     Rectangle {
         anchors.fill:   parent
-        color:          qgcPal.window
-    }
-
-    // Border-bottom 2px #c9ccce in the artboard.
-    Rectangle {
-        anchors.left:   parent.left
-        anchors.right:  parent.right
-        anchors.bottom: parent.bottom
-        height:         2
-        color:          qgcPal.windowShade
+        color:          root._chrome
     }
 
     // ---------------------------------------------------------------- helpers
     //
-    // Severity is the same 0/1/2 scale the removed status bar used: 0 good,
-    // 1 warn, 2 bad. Unknown reads neutral rather than alarming, because a bar
-    // that shouts on the bench teaches the pilot to ignore it.
+    // Severity is the 0/1/2 scale the removed status bar used: 0 good, 1 warn,
+    // 2 bad. Unknown reads neutral rather than alarming, because a bar that
+    // shouts on the bench teaches the pilot to ignore it.
 
     function _severityColor(severity) {
         if (severity === 2) {
@@ -92,17 +95,10 @@ Item {
 
     // ------------------------------------------------------------- readiness
     //
-    // One word for the aircraft's state, in the order a pilot needs to hear it,
-    // and a tone that says whether to act on it. The branching mirrors
-    // MainStatusIndicator so the chip and the status drawer never disagree;
-    // the words are shorter and upper case because the chip is small. What is
-    // reported is the autopilot's own judgement, not a synthesis of GPS and EKF
-    // done here.
-    //
-    // Filled green is reserved for armed. A disarmed aircraft that is READY
-    // shows the word in green on the neutral chip, not a green chip: a green
-    // block is what the artboard draws for ARMED, and whether the motors can
-    // turn is the one thing a pilot must never mistake.
+    // The branching mirrors MainStatusIndicator so the pill and the status
+    // drawer never disagree; the words are shorter and upper case because the
+    // pill is small. What is reported is the autopilot's own judgement, not a
+    // synthesis of GPS and EKF done here.
 
     readonly property bool _commsLost:             _vehicleAvailable
                                                    && _activeVehicle.vehicleLinkManager
@@ -161,8 +157,17 @@ Item {
                    ? qsTr("READY") : qsTr("NOT READY")
     }
 
-    /// The lowest battery of the pack, by percent when every battery reports one
-    /// and by voltage otherwise. A pack is only as good as its worst cell.
+    // --------------------------------------------------------------- battery
+    //
+    /// The lowest battery of the pack, by percent when every battery reports
+    /// one and by voltage otherwise. A pack is only as good as its worst cell.
+    ///
+    /// A plain binding, on purpose. It used to be re-assigned imperatively from
+    /// an onActiveVehicleChanged handler, and that assignment broke the binding
+    /// at the moment the vehicle appeared with zero batteries reported -- so
+    /// the cell stayed blank for the whole flight. Verified on the bench
+    /// 2026-09-15 with a log the stock indicator read 12.6 V from. As a
+    /// binding it re-evaluates when batteries.count changes.
     function _selectBattery() {
         if (!_vehicleAvailable || !_activeVehicle.batteries || _activeVehicle.batteries.count === 0) {
             return null
@@ -188,13 +193,7 @@ Item {
         return lowest
     }
 
-    property var _battery: _selectBattery()
-
-    Connections {
-        target: QGroundControl.multiVehicleManager
-        ignoreUnknownSignals: true
-        function onActiveVehicleChanged() { root._battery = root._selectBattery() }
-    }
+    readonly property var _battery: _selectBattery()
 
     readonly property bool _batteryVoltageKnown: _battery !== null && !isNaN(_battery.voltage.rawValue)
     readonly property bool _batteryPercentKnown: _battery !== null && !isNaN(_battery.percentRemaining.rawValue)
@@ -202,32 +201,21 @@ Item {
     readonly property bool _batteryTimeKnown:    _battery !== null && !isNaN(_battery.timeRemaining.rawValue)
                                                  && _battery.timeRemaining.rawValue > 0
 
+    function _batteryMainText() {
+        if (_batteryPercentKnown) {
+            return qsTr("%1%").arg(_battery.percentRemaining.rawValue.toFixed(0))
+        }
+        if (_batteryVoltageKnown) {
+            return qsTr("%1 V").arg(_battery.voltage.rawValue.toFixed(1))
+        }
+        return qsTr("—")
+    }
+
     function _batteryTimeText() {
         return qsTr("%1 min").arg(Math.round(_battery.timeRemaining.rawValue / 60))
     }
 
-    // Distance is NaN until the vehicle has a home position. The bearing the vehicle
-    // reports is absolute; it is turned nose-relative before it is drawn, because
-    // "which way do I turn" is the question an arrow on a status bar answers.
-    readonly property bool _homeKnown:        _vehicleAvailable && !isNaN(_activeVehicle.distanceToHome.rawValue)
-    readonly property bool _homeBearingKnown: _homeKnown
-                                              && !isNaN(_activeVehicle.headingToHome.rawValue)
-                                              && !isNaN(_activeVehicle.heading.rawValue)
-    readonly property real _homeRelativeBearing: _homeBearingKnown
-                                                 ? (((_activeVehicle.headingToHome.rawValue - _activeVehicle.heading.rawValue) % 360) + 360) % 360
-                                                 : 0
-
-    function _homeDistanceValue() {
-        if (!_homeKnown) {
-            return qsTr("—")
-        }
-        var d = _activeVehicle.distanceToHome.rawValue
-        return d >= 1000 ? (d / 1000).toFixed(1) : d.toFixed(0)
-    }
-
-    function _homeDistanceUnit() {
-        return (_homeKnown && _activeVehicle.distanceToHome.rawValue >= 1000) ? qsTr("km") : qsTr("m")
-    }
+    // ------------------------------------------------------------------ GNSS
 
     function _gpsAvailable() {
         return _vehicleAvailable && _activeVehicle.gps && _activeVehicle.gps.telemetryAvailable
@@ -251,9 +239,8 @@ Item {
         return _vehicleArmedOrInFlight() ? 2 : 1
     }
 
-    /// The artboard puts the fix quality on the big line and the satellite count
-    /// beside it, so RTK -- the thing that decides whether a survey is usable --
-    /// is what the eye lands on.
+    /// RTK -- the thing that decides whether a survey is usable -- is what the
+    /// eye lands on; the fix type otherwise.
     function _gpsPrimaryText() {
         if (!_gpsAvailable()) {
             return qsTr("—")
@@ -264,352 +251,230 @@ Item {
         return _activeVehicle.gps.lock.enumStringValue
     }
 
-    function _satCount() {
+    function _satsText() {
         if (!_vehicleAvailable || !_activeVehicle.gps) {
-            return -1
+            return ""
         }
         var n = _activeVehicle.gps.count.rawValue
-        return (n === undefined || isNaN(n)) ? -1 : n
-    }
-
-    function _satsText() {
-        var n = _satCount()
-        return n < 0 ? qsTr("— sats") : qsTr("%1 sats").arg(n)
+        return (n === undefined || isNaN(n)) ? "" : qsTr("%1 sats").arg(n)
     }
 
     // EKF health is not a one-liner -- two MAVLink sources describe the filter
-    // and five subsystems have to be reconciled -- so it has its own component
-    // rather than being re-derived here.
+    // and five subsystems have to be reconciled -- so it has its own component.
+    // The bar has no cell for it; it enters the calm sentence when degraded.
     VehicleEkfHealth {
         id:      ekfHealth
         vehicle: root._activeVehicle
     }
 
-    // ------------------------------------------------------------- mode chip
+    // ---------------------------------------------------------- the sentence
     //
-    // Artboard: a 116px cell, green when armed, carrying the arm state over the
-    // flight mode. The arm state is now the readiness word -- see above -- so a
-    // disarmed aircraft reads READY or NOT READY rather than only DISARMED.
-    //
-    // It also carries the application menu. The artboard draws no tool button
-    // anywhere in its five zones, but removing the stock toolbar removes the
-    // only route to Comm Links, Settings and the Plan view -- on the handheld
-    // that leaves no way to set up the datalink at all. Putting the menu on the
-    // chip keeps one entry point without inventing a zone the drawing does not
-    // have. This is the one interaction here the artboard does not specify.
-    Rectangle {
-        id:                     modeChip
-        anchors.left:           parent.left
-        anchors.top:            parent.top
-        anchors.bottom:         parent.bottom
-        anchors.bottomMargin:   2       // clear the bar's bottom border
-        // 116 of 1280 in the artboard, but only as a floor. The artboard only
-        // ever draws "ARMED"; "NOT READY", "COMMS LOST" and "NO LINK" are wider
-        // than 116px at this size and were being centred out past the left edge
-        // of the screen, so the chip grows to whatever the longest state needs.
-        width:                  Math.max(ScreenTools.defaultFontPixelWidth * 8,
-                                         chipColumn.width + ScreenTools.defaultFontPixelWidth * 1.5)
-        readonly property int _tone: root._readinessTone()
+    /// What the aircraft is doing, in one line, when no vehicle message is
+    /// standing. This is DJI's "Ready to Go" and Auterion's status text: the
+    /// single most stranger-friendly instrument any of them has.
+    readonly property int  _missionCount:   missionController ? missionController.missionItemCount    : 0
+    readonly property int  _missionCurrent: missionController ? missionController.currentMissionIndex : 0
+    readonly property real _missionTimeS:   missionController ? missionController.missionTime          : NaN
 
-        // Fill only for states that demand it. Danger and attention fill in any
-        // arm state; green fills only when armed. Everything else is the neutral
-        // chip, and READY is carried by the word's colour instead.
-        color:                  _tone === 3 ? root._danger
-                                : _tone === 2 ? root._alert
-                                : (root._vehicleArmedOrInFlight() ? root._good : qgcPal.windowShade)
-
-        // White on the red and green fills; dark text on amber, which is too light
-        // for white; green text for READY on the neutral chip.
-        readonly property color _fg: (_tone === 3 || (_tone === 1 && root._vehicleArmedOrInFlight())) ? "white"
-                                     : (_tone === 1 ? root._good : qgcPal.text)
-
-        Column {
-            id:                 chipColumn
-            anchors.centerIn:   parent
-            spacing:            2
-
-            QGCLabel {
-                anchors.horizontalCenter:   parent.horizontalCenter
-                text:                       root._readinessText()
-                color:                      modeChip._fg
-                font.pointSize:             ScreenTools.largeFontPointSize * 0.95
-                font.bold:                  true
-            }
-
-            QGCLabel {
-                anchors.horizontalCenter:   parent.horizontalCenter
-                text:                       root._vehicleAvailable ? root._activeVehicle.flightMode : ""
-                color:                      modeChip._fg
-                font.pointSize:             ScreenTools.smallFontPointSize
-                visible:                    text !== ""
-            }
+    function _missionTimeText() {
+        if (isNaN(_missionTimeS) || !isFinite(_missionTimeS) || _missionTimeS <= 0) {
+            return ""
         }
-
-        QGCMouseArea {
-            anchors.fill:   parent
-            onClicked:      mainWindow.showToolSelectDialog()
-        }
+        var mins = Math.floor(_missionTimeS / 60)
+        var secs = Math.floor(_missionTimeS % 60)
+        return qsTr("%1:%2 left").arg(mins).arg(secs < 10 ? "0" + secs : secs)
     }
 
-    // --------------------------------------------------------------- readouts
-    //
-    // Artboard: battery, GPS/RTK and EKF across the middle with hairline
-    // dividers, each a small label over one large value.
+    function _positionSuffix() {
+        if (!ekfHealth.known || ekfHealth.severity === 0) {
+            return ""
+        }
+        return ekfHealth.severity === 2 ? qsTr(" · position BAD") : qsTr(" · position WARN")
+    }
+
+    function _calmSentence() {
+        if (!_vehicleAvailable) {
+            return qsTr("No aircraft connected")
+        }
+        var mode = _activeVehicle.flightMode
+        if (_activeVehicle.flying || _activeVehicle.landing) {
+            if (_missionCount > 0 && _activeVehicle.flightMode === "Auto") {
+                var t = _missionTimeText()
+                return qsTr("On mission · WP %1 of %2").arg(_missionCurrent).arg(_missionCount)
+                       + (t !== "" ? " · " + t : "") + _positionSuffix()
+            }
+            return qsTr("Flying · %1").arg(mode) + _positionSuffix()
+        }
+        if (_activeVehicle.armed) {
+            return qsTr("Armed · %1").arg(mode) + _positionSuffix()
+        }
+        if (_readinessTone() === 1) {
+            return qsTr("Ready to take off") + _positionSuffix()
+        }
+        return qsTr("Not ready · %1").arg(mode) + _positionSuffix()
+    }
+
+    // -------------------------------------------------------------- left side
     Row {
-        id:                     readouts
-        anchors.left:           modeChip.right
-        anchors.right:          alertPanel.visible ? alertPanel.left : parent.right
-        anchors.top:            parent.top
-        anchors.bottom:         parent.bottom
-        anchors.bottomMargin:   2
-        anchors.leftMargin:     ScreenTools.defaultFontPixelWidth * 1.8
-        anchors.rightMargin:    ScreenTools.defaultFontPixelWidth * 1.8
-        spacing:                ScreenTools.defaultFontPixelWidth * 2.3
+        id:                     leftCluster
+        anchors.left:           parent.left
+        anchors.leftMargin:     ScreenTools.defaultFontPixelWidth
+        anchors.verticalCenter: parent.verticalCenter
+        spacing:                ScreenTools.defaultFontPixelWidth * 0.9
 
-        // ------------------------------------------------------------ battery
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing:                1
-
-            QGCLabel {
-                text:           qsTr("BATTERY")
-                color:          qgcPal.text
-                opacity:        root._labelOpacity
-                font.pointSize: ScreenTools.smallFontPointSize
-            }
-
-            // Percent leads. A client has no idea what 22.4 V means for this pack;
-            // Rosor does, so the voltage stays, one size down. When the autopilot
-            // reports a time remaining it is the most useful number on the bar --
-            // it is what decides when to turn for home -- so it sits right beside.
-            // With no percent the voltage takes the big slot, as before.
-            Row {
-                spacing: ScreenTools.defaultFontPixelWidth * 0.4
-
-                QGCLabel {
-                    text:           root._batteryPercentKnown
-                                        ? root._battery.percentRemaining.rawValue.toFixed(0)
-                                        : (root._batteryVoltageKnown
-                                            ? root._battery.voltage.rawValue.toFixed(1)
-                                            : qsTr("—"))
-                    color:          qgcPal.text
-                    font.pointSize: ScreenTools.largeFontPointSize * 1.1
-                    font.bold:      true
-                }
-
-                QGCLabel {
-                    anchors.bottom:         parent.bottom
-                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   root._batteryPercentKnown ? qsTr("%") : qsTr("V")
-                    color:                  qgcPal.text
-                    opacity:                root._labelOpacity
-                    font.pointSize:         ScreenTools.defaultFontPointSize
-                    visible:                root._batteryPercentKnown || root._batteryVoltageKnown
-                }
-
-                QGCLabel {
-                    anchors.bottom:         parent.bottom
-                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   (root._batteryPercentKnown && root._batteryVoltageKnown)
-                                                ? qsTr("%1 V").arg(root._battery.voltage.rawValue.toFixed(1))
-                                                : ""
-                    color:                  qgcPal.text
-                    opacity:                root._labelOpacity
-                    font.pointSize:         ScreenTools.defaultFontPointSize
-                    visible:                text !== ""
-                }
-
-                QGCLabel {
-                    anchors.bottom:         parent.bottom
-                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   root._batteryTimeKnown ? qsTr("· %1").arg(root._batteryTimeText()) : ""
-                    color:                  qgcPal.text
-                    opacity:                root._labelOpacity
-                    font.pointSize:         ScreenTools.defaultFontPointSize
-                    visible:                text !== ""
-                }
-            }
-        }
-
+        // The state pill. It also carries the application menu: removing the
+        // stock toolbar removed the only route to Comm Links, Settings and the
+        // Plan view, and on the handheld that leaves no way to set up the
+        // datalink at all. One entry point, on the thing you look at first.
         Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width:                  1
-            height:                 readouts.height * 0.6
-            color:                  qgcPal.windowShade
-        }
+            id:     statePill
+            height: ScreenTools.defaultFontPixelHeight * 0.9
+            width:  stateLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.6
+            radius: ScreenTools.defaultFontPixelHeight * 0.12
 
-        // --------------------------------------------------------------- home
-        //
-        // Not in the artboard -- see the file comment. The arrow is nose-relative:
-        // straight up means home is dead ahead. That is the frame a pilot steers
-        // in; the map below already gives the north-up one.
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing:                1
+            readonly property int _tone: root._readinessTone()
 
-            QGCLabel {
-                text:           qsTr("HOME")
-                color:          qgcPal.text
-                opacity:        root._labelOpacity
-                font.pointSize: ScreenTools.smallFontPointSize
-            }
+            // Fill only for states that demand it. Danger and attention fill in
+            // any arm state; green fills only when armed. Everything else is the
+            // neutral pill, and READY is carried by the word's colour instead.
+            color: _tone === 3 ? root._danger
+                   : _tone === 2 ? root._alert
+                   : (root._vehicleArmedOrInFlight() ? root._good : root._neutral)
 
-            Row {
-                spacing: ScreenTools.defaultFontPixelWidth * 0.4
-
-                QGCLabel {
-                    text:           root._homeDistanceValue()
-                    color:          qgcPal.text
-                    font.pointSize: ScreenTools.largeFontPointSize * 1.1
-                    font.bold:      true
-                }
-
-                QGCLabel {
-                    anchors.bottom:         parent.bottom
-                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   root._homeDistanceUnit()
-                    color:                  qgcPal.text
-                    opacity:                root._labelOpacity
-                    font.pointSize:         ScreenTools.defaultFontPointSize
-                    visible:                root._homeKnown
-                }
-
-                QGCColoredImage {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width:                  ScreenTools.defaultFontPixelHeight * 0.9
-                    height:                 width
-                    sourceSize.height:      height
-                    source:                 "/res/ArrowRight.svg"
-                    fillMode:               Image.PreserveAspectFit
-                    color:                  qgcPal.text
-                    // ArrowRight points right at rest; minus 90 puts a 0 deg bearing straight up.
-                    rotation:               root._homeRelativeBearing - 90
-                    visible:                root._homeBearingKnown
-                }
-            }
-        }
-
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width:                  1
-            height:                 readouts.height * 0.6
-            color:                  qgcPal.windowShade
-        }
-
-        // ------------------------------------------------------------ GPS/RTK
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing:                1
+            readonly property color _fgColor: _tone === 2 ? "#000000"
+                                              : (_tone === 1 && !root._vehicleArmedOrInFlight()) ? root._good
+                                              : root._fg
 
             QGCLabel {
-                text:           qsTr("GPS / RTK")
-                color:          qgcPal.text
-                opacity:        root._labelOpacity
-                font.pointSize: ScreenTools.smallFontPointSize
+                id:                 stateLabel
+                anchors.centerIn:   parent
+                text:               root._readinessText()
+                font.pointSize:     ScreenTools.defaultFontPointSize
+                font.bold:          true
+                color:              statePill._fgColor
             }
 
-            Row {
-                spacing: ScreenTools.defaultFontPixelWidth * 0.4
-
-                QGCLabel {
-                    text:           root._gpsPrimaryText()
-                    // Same rule as EKF: with no vehicle and no fix there is
-                    // nothing to be green about, so unknown stays neutral
-                    // rather than reading as a good lock on the bench.
-                    color:          root._gpsAvailable() ? root._severityColor(root._gpsSeverity())
-                                                         : qgcPal.text
-                    font.pointSize: ScreenTools.largeFontPointSize * 1.1
-                    font.bold:      true
-                }
-
-                QGCLabel {
-                    anchors.bottom:         parent.bottom
-                    anchors.bottomMargin:   ScreenTools.defaultFontPixelHeight * 0.1
-                    text:                   root._satsText()
-                    color:                  qgcPal.text
-                    opacity:                root._labelOpacity
-                    font.pointSize:         ScreenTools.defaultFontPointSize
-                }
+            QGCMouseArea {
+                anchors.fill:   parent
+                onClicked:      mainWindow.showToolSelectDialog()
             }
         }
 
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width:                  1
-            height:                 readouts.height * 0.6
-            color:                  qgcPal.windowShade
-        }
+        // The sentence slot: the newest standing vehicle message when there is
+        // one -- VehicleMessageBanner does the folding, counting and avoidance
+        // classification, and draws itself amber -- otherwise the calm line.
+        Item {
+            id:     sentenceSlot
+            height: ScreenTools.defaultFontPixelHeight * 0.9
+            width:  alertBanner.hasMessage ? ScreenTools.defaultFontPixelWidth * 28
+                                           : calmLabel.implicitWidth
 
-        // ---------------------------------------------------------------- EKF
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing:                1
-
-            QGCLabel {
-                // The artboard labels this cell EKF. Nobody outside the autopilot
-                // community knows what an EKF is, and the value it reports -- OK,
-                // WARN, BAD -- is the health of the position estimate, so that is
-                // what the cell is called. The filter is still what it reads.
-                text:           qsTr("POSITION")
-                color:          qgcPal.text
-                opacity:        root._labelOpacity
-                font.pointSize: ScreenTools.smallFontPointSize
+            VehicleMessageBanner {
+                id:                 alertBanner
+                anchors.fill:       parent
+                compact:            true
+                visible:            hasMessage
+                onReviewRequested:  root.reviewVehicleMessages()
             }
 
             QGCLabel {
-                text:           ekfHealth.text
-                // Unknown stays in the ordinary text colour. Green would claim
-                // the filter is healthy when nothing has reported yet.
-                color:          ekfHealth.known ? root._severityColor(ekfHealth.severity)
-                                                : qgcPal.text
-                font.pointSize: ScreenTools.largeFontPointSize * 1.1
-                font.bold:      true
+                id:                     calmLabel
+                anchors.verticalCenter: parent.verticalCenter
+                text:                   root._calmSentence()
+                font.pointSize:         ScreenTools.defaultFontPointSize
+                color:                  root._fgDim
+                visible:                !alertBanner.hasMessage
             }
         }
     }
 
-    // ----------------------------------------------------------- alert panel
-    //
-    // Artboard: a 300px amber cell holding the newest standing message and a
-    // count of the ones behind it. VehicleMessageBanner already does the
-    // folding, counting, de-duplication and avoidance classification, so the
-    // zone supplies the space and the banner supplies the behaviour.
-    Item {
-        id:                     alertPanel
+    // ------------------------------------------------------------- right side
+    Row {
+        id:                     rightCluster
         anchors.right:          parent.right
-        anchors.top:            parent.top
-        anchors.bottom:         parent.bottom
-        anchors.bottomMargin:   2
-        // 300 of 1280 in the artboard.
-        width:                  ScreenTools.defaultFontPixelWidth * 20.7
-        visible:                alertBanner.hasMessage
+        anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
+        anchors.verticalCenter: parent.verticalCenter
+        spacing:                ScreenTools.defaultFontPixelWidth * 1.6
 
-        // border-left 2px #c9ccce in the artboard.
-        Rectangle {
-            anchors.left:   parent.left
-            anchors.top:    parent.top
-            anchors.bottom: parent.bottom
-            width:          2
-            color:          qgcPal.windowShade
+        // Battery: percent leads, minutes beside it when the autopilot
+        // estimates one. Volts only when there is no percent.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing:                ScreenTools.defaultFontPixelWidth * 0.4
+
+            QGCLabel {
+                anchors.baseline:   batteryTime.baseline
+                text:               root._batteryMainText()
+                font.pointSize:     ScreenTools.defaultFontPointSize * 1.1
+                font.bold:          true
+                color:              root._fg
+            }
+
+            QGCLabel {
+                id:                 batteryTime
+                anchors.verticalCenter: parent.verticalCenter
+                text:               root._batteryTimeKnown ? root._batteryTimeText() : ""
+                font.pointSize:     ScreenTools.smallFontPointSize
+                color:              root._fgDim
+                visible:            text !== ""
+            }
         }
 
-        VehicleMessageBanner {
-            id:                 alertBanner
-            anchors.fill:       parent
-            anchors.leftMargin: 2
-            compact:            true
-            onReviewRequested:  root.reviewVehicleMessages()
+        // GNSS: the fix type in its severity colour, satellites beside it.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing:                ScreenTools.defaultFontPixelWidth * 0.4
+
+            QGCLabel {
+                anchors.baseline:   satsLabel.baseline
+                text:               root._gpsPrimaryText()
+                font.pointSize:     ScreenTools.defaultFontPointSize * 1.1
+                font.bold:          true
+                // With no vehicle and no fix there is nothing to be green about,
+                // so unknown stays neutral rather than reading as a good lock.
+                color:              root._gpsAvailable() ? root._severityColor(root._gpsSeverity()) : root._fg
+            }
+
+            QGCLabel {
+                id:                 satsLabel
+                anchors.verticalCenter: parent.verticalCenter
+                text:               root._satsText()
+                font.pointSize:     ScreenTools.smallFontPointSize
+                color:              root._fgDim
+                visible:            text !== ""
+            }
+        }
+
+        // The application menu, where every one of the reference apps puts it.
+        Item {
+            width:  ScreenTools.defaultFontPixelHeight * 1.2
+            height: ScreenTools.defaultFontPixelHeight * 1.2
+            anchors.verticalCenter: parent.verticalCenter
+
+            QGCColoredImage {
+                anchors.centerIn:   parent
+                width:              ScreenTools.defaultFontPixelHeight * 0.8
+                height:             width
+                sourceSize.height:  height
+                source:             "/res/gear-white.svg"
+                fillMode:           Image.PreserveAspectFit
+                color:              root._fg
+            }
+
+            QGCMouseArea {
+                anchors.fill:   parent
+                onClicked:      mainWindow.showToolSelectDialog()
+            }
         }
     }
 
     // "Tap to review" opens the same overall-status drawer the stock toolbar's
-    // main status indicator owned. The indicator itself is not drawn -- the
-    // artboard has no cell for it -- but it stays instantiated over the alert
-    // panel so the drawer has a control to anchor under, and the review path
-    // stays the proven one rather than a second message list.
+    // main status indicator owned. The indicator itself is not drawn, but it
+    // stays instantiated over the sentence slot so the drawer has a control to
+    // anchor under, and the review path stays the proven one.
     MainStatusIndicator {
         id:             statusDrawerHost
-        anchors.fill:   alertPanel
+        anchors.fill:   sentenceSlot
         visible:        false
     }
 }

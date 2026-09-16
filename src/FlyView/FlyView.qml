@@ -496,15 +496,13 @@ Item {
         vehicle:                _activeVehicle
     }
 
-    // Zone 1 of Main.dc.html. The stock toolbar is gone: its indicator row, its
-    // tool buttons and the Flickable around them have no zone in the drawing,
-    // and the three readouts worth keeping -- battery, GPS/RTK, EKF -- are what
-    // the status bar draws, at the size the artboard gives them.
-    //
-    // Still called `toolbar` because every zone in this file anchors to it.
+    // v3's status bar: the translucent strip across the top of the viewport
+    // carrying the state pill, one status sentence, battery, GNSS and the menu.
+    // Still called `toolbar` because every slot in this file insets from it.
     FlyViewStatusBar {
         id:                         toolbar
         visible:                    !QGroundControl.videoManager.fullScreen
+        missionController:          _planController.missionController
         onReviewVehicleMessages:    dropMainStatusIndicatorTool()
     }
 

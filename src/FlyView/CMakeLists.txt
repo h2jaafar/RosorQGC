@@ -37,7 +37,6 @@ qt_add_qml_module(FlyViewModule
         FlyViewStatusBar.qml
         FlyViewTelemetryCard.qml
         VehicleEkfHealth.qml
-        MissionProgressBlock.qml
         FlyViewMissionCompleteDialog.qml
         FlyViewPreFlightChecklistPopup.qml
         FlyViewToolStrip.qml
