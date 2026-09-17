@@ -5,8 +5,6 @@
 #include "Vehicle.h"
 #include "VehicleComponent.h"
 
-#include <QtCore/QCoreApplication>
-
 QGC_LOGGING_CATEGORY(AutoPilotPluginLog, "AutoPilotPlugins.AutoPilotPlugin");
 
 AutoPilotPlugin::AutoPilotPlugin(Vehicle *vehicle, QObject *parent)
@@ -59,10 +57,10 @@ void AutoPilotPlugin::parametersReadyPreChecks()
     }
 
     if (!_setupComplete) {
-        // Take the user to Vehicle Config Summary
-        qgcApp()->showVehicleConfig();
-        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-        qgcApp()->showAppMessage(tr("One or more vehicle components require setup prior to flight."));
+        // Tell, do not hijack. Upstream Stable_V5.1 does the same; the older base this
+        // fork carries jumped the operator into Vehicle Configuration on every connect
+        // to an aircraft with any unfinished setup component, over the map they came for.
+        qgcApp()->showAppMessage(tr("Configuration tasks remain before this vehicle is ready to fly. See Vehicle Configuration for details."));
     }
 }
 

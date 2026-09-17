@@ -326,7 +326,26 @@ Item {
         if (_readinessTone() === 1) {
             return qsTr("Ready to take off") + _positionSuffix()
         }
+        // NOT READY carries its reason. ArduPilot repeats the failing pre-arm
+        // check every 30 s while disarmed; Vehicle keeps the latest as
+        // prearmError for 35 s. Without this the pill said NOT READY and the
+        // only explanation was a white block on the map that Field Mode hides.
+        var reason = _prearmReason()
+        if (reason !== "") {
+            return qsTr("Not ready · %1").arg(reason)
+        }
         return qsTr("Not ready · %1").arg(mode) + _positionSuffix()
+    }
+
+    /// The standing pre-arm failure without its "PreArm:" / "preflight fail:"
+    /// prefix, or empty when none stands.
+    function _prearmReason() {
+        if (!_vehicleAvailable || !_activeVehicle.prearmError) {
+            return ""
+        }
+        var text = String(_activeVehicle.prearmError)
+        text = text.replace(/^PreArm:?\s*/i, "").replace(/^preflight\s*(fail:?)?\s*/i, "").trim()
+        return text
     }
 
     // -------------------------------------------------------------- left side
@@ -337,10 +356,11 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing:                ScreenTools.defaultFontPixelWidth * 0.9
 
-        // The state pill. It also carries the application menu: removing the
-        // stock toolbar removed the only route to Comm Links, Settings and the
-        // Plan view, and on the handheld that leaves no way to set up the
-        // datalink at all. One entry point, on the thing you look at first.
+        // The state pill. Tapping the state opens the state: the overall-status
+        // drawer with the readiness detail, the vehicle messages and Arm/Disarm,
+        // or, with no aircraft, the list of saved links to connect. The
+        // application menu lives on the gear at the far right, where every one
+        // of the reference apps puts it.
         Rectangle {
             id:     statePill
             height: ScreenTools.defaultFontPixelHeight * 0.9
@@ -371,7 +391,7 @@ Item {
 
             QGCMouseArea {
                 anchors.fill:   parent
-                onClicked:      mainWindow.showToolSelectDialog()
+                onClicked:      statusDrawerHost.dropMainStatusIndicator()
             }
         }
 
@@ -382,7 +402,7 @@ Item {
             id:     sentenceSlot
             height: ScreenTools.defaultFontPixelHeight * 0.9
             width:  alertBanner.hasMessage ? ScreenTools.defaultFontPixelWidth * 28
-                                           : calmLabel.implicitWidth
+                                           : calmLabel.width
 
             VehicleMessageBanner {
                 id:                 alertBanner
@@ -395,6 +415,11 @@ Item {
             QGCLabel {
                 id:                     calmLabel
                 anchors.verticalCenter: parent.verticalCenter
+                // A pre-arm reason can run long; it must not push the battery and
+                // GNSS clusters off the bar.
+                width:                  Math.min(implicitWidth, ScreenTools.defaultFontPixelWidth * 44)
+                elide:                  Text.ElideRight
+                maximumLineCount:       1
                 text:                   root._calmSentence()
                 font.pointSize:         ScreenTools.defaultFontPointSize
                 color:                  root._fgDim

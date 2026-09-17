@@ -444,6 +444,11 @@ ApplicationWindow {
         }
         closeIndicatorDrawer()
         if (criticalVehicleMessagePopup.visible || QGroundControl.videoManager.fullScreen) {
+            if (criticalVehicleMessagePopup.criticalVehicleMessage === message) {
+                // The same standing fault again: keep it up, do not count it as news.
+                autoDismissTimer.restart()
+                return
+            }
             // We received additional warning message while an older warning message was still displayed.
             // When the user close the older one drop the message indicator tool so they can see the rest of them.
             criticalVehicleMessagePopup.additionalCriticalMessagesReceived = true
@@ -472,10 +477,13 @@ ApplicationWindow {
 
         // Auto-dismiss timer — the stock popup blocks the UI forever until
         // tapped. Fire the same dismiss path after a fixed delay; reset the
-        // timer when another error arrives while we're still visible.
+        // timer when another error arrives while we're still visible. Eight
+        // seconds: long enough to read a sentence, short enough that a standing
+        // fault does not own the Settings page (repeats of the same text only
+        // restart the timer, see showCriticalVehicleMessage).
         Timer {
             id:             autoDismissTimer
-            interval:       1500
+            interval:       8000
             repeat:         false
             onTriggered:    criticalVehicleMessagePopup.close()
         }
