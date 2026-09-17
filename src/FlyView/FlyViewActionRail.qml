@@ -106,6 +106,31 @@ Item {
             onActivated:    root._confirm(root.guidedController.actionTakeoff)
         }
 
+        // The mission verb. One slot, two states: on the ground with a mission
+        // aboard it starts; in the air with waypoints left it continues. Before
+        // this the only way to start a mission was the automatic popup, which
+        // could not be brought back once dismissed. Resume-after-landing keeps
+        // its own dialog (FlyViewMissionCompleteDialog), which appears at the
+        // one moment it applies.
+        RailButton {
+            readonly property bool _continue: root.guidedController ? root.guidedController.showContinueMission : false
+            readonly property bool _start:    root.guidedController ? root.guidedController.showStartMission    : false
+            label:          _continue ? qsTr("Continue") : qsTr("Start")
+            iconSource:     "/res/Play.svg"
+            actionEnabled:  _start || _continue
+            onActivated:    root._confirm(_continue ? root.guidedController.actionContinueMission
+                                                    : root.guidedController.actionStartMission)
+        }
+
+        // Change altitude in flight, outside a mission. The strip that carried
+        // it was removed with v3; the slider it opens is the takeoff one.
+        RailButton {
+            label:          qsTr("Altitude")
+            iconSource:     "/res/chevron-up.svg"
+            actionEnabled:  root.guidedController ? root.guidedController.showChangeAlt : false
+            onActivated:    root._confirm(root.guidedController.actionChangeAlt)
+        }
+
         RailButton {
             label:          qsTr("Return")
             iconSource:     "/res/rtl.svg"
@@ -129,5 +154,11 @@ Item {
             actionEnabled:  root.guidedController ? root.guidedController.showPause : false
             onActivated:    root._confirm(root.guidedController.actionPause)
         }
+
+        // Emergency Stop is deliberately not on the rail. On a multirotor it is
+        // motors-off in flight, which is a crash; Hold is the stop an operator
+        // means. The action still exists in GuidedActionsController for the
+        // advanced tools. Decision recorded 2026-09-17; reverse it here, not by
+        // adding a fifth verb somewhere else.
     }
 }

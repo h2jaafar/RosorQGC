@@ -665,9 +665,11 @@ FlightMap {
                 ColumnLayout {
                     spacing: ScreenTools.defaultFontPixelWidth / 2
 
+                    // Operator words, one verb each. The two engineer entries (estimator
+                    // origin, heading) stay available in Advanced mode only.
                     QGCButton {
                         Layout.fillWidth:   true
-                        text:               qsTr("Go to location")
+                        text:               qsTr("Fly here")
                         visible:            globals.guidedControllerFlyView.showGotoLocation
                         onClicked: {
                             mapClickDropPanel.close()
@@ -684,7 +686,7 @@ FlightMap {
 
                     QGCButton {
                         Layout.fillWidth:   true
-                        text:               qsTr("Orbit at location")
+                        text:               qsTr("Circle here")
                         visible:            globals.guidedControllerFlyView.showOrbit
                         onClicked: {
                             mapClickDropPanel.close()
@@ -695,7 +697,7 @@ FlightMap {
 
                     QGCButton {
                         Layout.fillWidth:   true
-                        text:               qsTr("ROI at location")
+                        text:               qsTr("Point the camera here")
                         visible:            globals.guidedControllerFlyView.showROI
                         onClicked: {
                             mapClickDropPanel.close()
@@ -716,7 +718,7 @@ FlightMap {
                     QGCButton {
                         Layout.fillWidth:   true
                         text:               qsTr("Set Estimator Origin")
-                        visible:            globals.guidedControllerFlyView.showSetEstimatorOrigin
+                        visible:            globals.guidedControllerFlyView.showSetEstimatorOrigin && QGroundControl.corePlugin.showAdvancedUI
                         onClicked: {
                             mapClickDropPanel.close()
                             globals.guidedControllerFlyView.confirmAction(globals.guidedControllerFlyView.actionSetEstimatorOrigin, mapClickCoord)
@@ -726,7 +728,7 @@ FlightMap {
                     QGCButton {
                         Layout.fillWidth:   true
                         text:               qsTr("Set Heading")
-                        visible:            globals.guidedControllerFlyView.showChangeHeading
+                        visible:            globals.guidedControllerFlyView.showChangeHeading && QGroundControl.corePlugin.showAdvancedUI
                         onClicked: {
                             mapClickDropPanel.close()
                             globals.guidedControllerFlyView.confirmAction(globals.guidedControllerFlyView.actionChangeHeading, mapClickCoord)
