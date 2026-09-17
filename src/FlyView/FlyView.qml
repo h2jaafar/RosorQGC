@@ -539,10 +539,19 @@ Item {
                     // Straight to Comm Links, the page with the Connect button, not
                     // to the application menu. showSettingsTool matches the page by
                     // its title, the same way MainStatusIndicatorOfflinePage does.
+                    // In Field Mode Settings is closed, so the button opens the
+                    // offline status drawer instead: the same saved links, one tap
+                    // each, without leaving the fly view.
                     QGCMouseArea {
                         id:             connectMouse
                         anchors.fill:   parent
-                        onClicked:      mainWindow.showSettingsTool(qsTr("Comm Links"))
+                        onClicked: {
+                            if (_fieldModeEnabled) {
+                                dropMainStatusIndicatorTool()
+                            } else {
+                                mainWindow.showSettingsTool(qsTr("Comm Links"))
+                            }
+                        }
                     }
                 }
             }
