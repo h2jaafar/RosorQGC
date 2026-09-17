@@ -184,15 +184,10 @@ Item {
                     maximumLineCount:   1
                 }
 
-                QGCLabel {
-                    Layout.fillWidth:   true
-                    text:               root._reviewText
-                    color:              bannerBg._fg
-                    font.pointSize:     ScreenTools.smallFontPointSize
-                    elide:              Text.ElideRight
-                    maximumLineCount:   1
-                    visible:            root.compact
-                }
+                // No second, stacked line in either mode. In the status bar
+                // (compact) the host is one text line tall, and a stacked
+                // "N more · tap to review" spilled out below the bar onto the
+                // map (bench 2026-09-17). The review text sits inline instead.
             }
 
             QGCLabel {
@@ -200,7 +195,6 @@ Item {
                 text:               root._reviewText
                 color:              bannerBg._fg
                 font.pointSize:     ScreenTools.smallFontPointSize
-                visible:            !root.compact
             }
         }
 

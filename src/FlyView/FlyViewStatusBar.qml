@@ -100,6 +100,10 @@ Item {
     // pill is small. What is reported is the autopilot's own judgement, not a
     // synthesis of GPS and EKF done here.
 
+    // MainStatusIndicator (the hidden drawer host at the bottom of this file)
+    // resolves this name from its host document, as it did from the stock
+    // toolbar. Same fact as _commsLost, under the name the indicator expects.
+    readonly property bool _communicationLost:     _commsLost
     readonly property bool _commsLost:             _vehicleAvailable
                                                    && _activeVehicle.vehicleLinkManager
                                                    && _activeVehicle.vehicleLinkManager.communicationLost
@@ -240,10 +244,21 @@ Item {
     }
 
     /// RTK -- the thing that decides whether a survey is usable -- is what the
-    /// eye lands on; the fix type otherwise.
+    /// eye lands on; the fix type otherwise. Short words: the stock enum string
+    /// for fix 6 is "3D RTK GPS Lock (fixed)", which on the bench ate a third
+    /// of the bar and pushed the message banner off it.
     function _gpsPrimaryText() {
         if (!_gpsAvailable()) {
             return qsTr("—")
+        }
+        switch (_activeVehicle.gps.lock.rawValue) {
+        case 6:  return qsTr("RTK Fixed")
+        case 5:  return qsTr("RTK Float")
+        case 4:  return qsTr("DGPS")
+        case 3:  return qsTr("3D Lock")
+        case 2:  return qsTr("2D Lock")
+        case 1:
+        case 0:  return qsTr("No fix")
         }
         if (_rtk && _rtk.connected.value) {
             return qsTr("RTK")
@@ -401,6 +416,7 @@ Item {
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing:                ScreenTools.defaultFontPixelWidth * 0.4
+            visible:                root._vehicleAvailable
 
             QGCLabel {
                 anchors.baseline:   batteryTime.baseline
@@ -424,6 +440,7 @@ Item {
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing:                ScreenTools.defaultFontPixelWidth * 0.4
+            visible:                root._vehicleAvailable
 
             QGCLabel {
                 anchors.baseline:   satsLabel.baseline
@@ -470,11 +487,12 @@ Item {
 
     // "Tap to review" opens the same overall-status drawer the stock toolbar's
     // main status indicator owned. The indicator itself is not drawn, but it
-    // stays instantiated over the sentence slot so the drawer has a control to
-    // anchor under, and the review path stays the proven one.
+    // stays instantiated over the left cluster (a sibling -- anchors cannot
+    // reach the nested sentence slot) so the drawer has a control to anchor
+    // under, and the review path stays the proven one.
     MainStatusIndicator {
         id:             statusDrawerHost
-        anchors.fill:   sentenceSlot
+        anchors.fill:   leftCluster
         visible:        false
     }
 }

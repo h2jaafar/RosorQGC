@@ -174,7 +174,7 @@ Item {
             id:                         guidedActionConfirm
             anchors.horizontalCenter:   parent.horizontalCenter
             anchors.top:                parent.top
-            anchors.topMargin:          _toolsMargin
+            anchors.topMargin:          toolbar.height + _toolsMargin
             height:                     toolbar.height
             z:                          QGroundControl.zOrderTopMost
             guidedController:           globals.guidedControllerFlyView
@@ -408,6 +408,7 @@ Item {
             anchors.top:        parent.top
             anchors.bottom:     parent.bottom
             anchors.topMargin:  toolbar.height
+            anchors.bottomMargin: _toolInsets.bottomEdgeRightInset
             z:                  QGroundControl.zOrderTopMost
             visible:            false
         }
@@ -535,7 +536,7 @@ Item {
         color:                  videoMouse.pressed ? Qt.rgba(0.25, 0.28, 0.33, 0.95)
                                                    : Qt.rgba(0.125, 0.141, 0.165, 0.88)
         z:                      QGroundControl.zOrderTopMost
-        visible:                !QGroundControl.videoManager.fullScreen
+        visible:                !QGroundControl.videoManager.fullScreen && !guidedValueSlider.visible
 
         QGCLabel {
             anchors.centerIn:   parent

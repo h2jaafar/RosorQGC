@@ -21,7 +21,7 @@ Rectangle {
 
     /// Fixed footprint so the inset the map is given never moves.
     width:  ScreenTools.defaultFontPixelWidth * 20
-    height: ScreenTools.defaultFontPixelHeight * 2.9
+    height: grid.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.6
     radius: ScreenTools.defaultFontPixelHeight * 0.19
     // #20242a at 0.90: the viewport chrome tone, fixed rather than themed
     // because it sits over imagery in either theme.
@@ -32,6 +32,13 @@ Rectangle {
     readonly property color _label:   "#8d959d"
 
     readonly property bool _vehicleAvailable: vehicle !== null && vehicle !== undefined
+
+    // Comms lost: the numbers stop being live. Dim the card so a stale radar
+    // or height reading cannot pass for a current one (seen on the bench when
+    // the replay log ran out: the card kept showing 38.6 m CLEAR at full weight).
+    readonly property bool _stale: _vehicleAvailable && vehicle.vehicleLinkManager
+                                   && vehicle.vehicleLinkManager.communicationLost
+    opacity: _stale ? 0.45 : 1.0
 
     readonly property real _groundSpeed: (_vehicleAvailable && vehicle.groundSpeed) ? vehicle.groundSpeed.rawValue : NaN
     readonly property real _climbRate:   (_vehicleAvailable && vehicle.climbRate)   ? vehicle.climbRate.rawValue   : NaN
@@ -140,6 +147,7 @@ Rectangle {
     }
 
     GridLayout {
+        id:                 grid
         anchors.fill:       parent
         anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.9
         anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.9

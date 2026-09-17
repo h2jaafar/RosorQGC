@@ -33,7 +33,7 @@ Rectangle {
 
     /// Fixed footprint so the inset the map is given never moves.
     width:  ScreenTools.defaultFontPixelWidth * 16.7
-    height: ScreenTools.defaultFontPixelHeight * 6.0
+    height: ScreenTools.defaultFontPixelHeight * 7.0
     radius: ScreenTools.defaultFontPixelHeight * 0.19
     // #20242a at 0.90: the viewport chrome tone, fixed rather than themed
     // because it sits over imagery in either theme.
@@ -50,6 +50,13 @@ Rectangle {
     readonly property color _label:   "#8d959d"
 
     readonly property bool _vehicleAvailable: vehicle !== null && vehicle !== undefined
+
+    // Comms lost: the numbers stop being live. Dim the card so a stale radar
+    // or height reading cannot pass for a current one (seen on the bench when
+    // the replay log ran out: the card kept showing 38.6 m CLEAR at full weight).
+    readonly property bool _stale: _vehicleAvailable && vehicle.vehicleLinkManager
+                                   && vehicle.vehicleLinkManager.communicationLost
+    opacity: _stale ? 0.45 : 1.0
 
     // --------------------------------------------------------------- radar
 
@@ -195,11 +202,11 @@ Rectangle {
     Canvas {
         id:             ring
         anchors.top:    header.bottom
-        anchors.bottom: readouts.top
+        anchors.bottom: root._vehicleAvailable ? readouts.top : parent.bottom
         anchors.left:   parent.left
         anchors.right:  parent.right
         anchors.topMargin:    ScreenTools.defaultFontPixelHeight * 0.1
-        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.1
+        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * (root._vehicleAvailable ? 0.1 : 0.3)
 
         // The vertical obstacle bar's column, on the right, kept clear of the ring.
         readonly property real barWidth:  ScreenTools.defaultFontPixelWidth * 0.9
@@ -382,7 +389,7 @@ Rectangle {
             QGCLabel {
                 Layout.alignment:   Qt.AlignBaseline
                 text:               root._closestKnown ? root._closest.toFixed(1) : "—"
-                font.pointSize:     ScreenTools.largeFontPointSize * 1.4
+                font.pointSize:     ScreenTools.defaultFontPointSize * 1.35
                 font.bold:          true
                 color:              root.insideTrigger ? root._danger : root._fg
             }
