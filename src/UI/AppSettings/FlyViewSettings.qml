@@ -34,6 +34,37 @@ SettingsPage {
         return fileModel
     }
 
+    // Field Mode strips the app to the fly view and closes every route to this
+    // page. Until now nothing in the UI could switch it on or off; the way back
+    // was adb or a settings wipe. The switch lives here, and a long press on the
+    // gear in the status bar asks to leave Field Mode from inside it.
+    SettingsGroupLayout {
+        Layout.fillWidth:   true
+        heading:            qsTr("Field Mode")
+
+        FactCheckBoxSlider {
+            Layout.fillWidth:   true
+            text:               qsTr("Field Mode: fly view only, no Settings, Plan or Configure")
+            fact:               _settingsManager.appSettings.fieldModeEnabled
+            visible:            fact.visible
+        }
+
+        FactCheckBoxSlider {
+            Layout.fillWidth:   true
+            text:               qsTr("Allow the Plan view in Field Mode")
+            fact:               _settingsManager.appSettings.fieldModeAllowPlan
+            enabled:            _settingsManager.appSettings.fieldModeEnabled.value
+            visible:            fact.visible
+        }
+
+        QGCLabel {
+            Layout.fillWidth:   true
+            wrapMode:           Text.WordWrap
+            font.pointSize:     ScreenTools.smallFontPointSize
+            text:               qsTr("To leave Field Mode from the fly view, press and hold the gear in the status bar.")
+        }
+    }
+
     SettingsGroupLayout {
         Layout.fillWidth:   true
         heading:            qsTr("General")

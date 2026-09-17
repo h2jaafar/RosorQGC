@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 
 import QGroundControl
@@ -446,7 +447,10 @@ Item {
         Item {
             id:     sentenceSlot
             height: ScreenTools.defaultFontPixelHeight * 0.9
-            width:  alertBanner.hasMessage ? ScreenTools.defaultFontPixelWidth * 28
+            // Wide enough that the message itself survives: at 28 characters the
+            // review label ate it ("AVOIDING — D…" on the bench). The right cluster
+            // starts past 60 characters on the handheld.
+            width:  alertBanner.hasMessage ? ScreenTools.defaultFontPixelWidth * 44
                                            : calmLabel.width
 
             VehicleMessageBanner {
@@ -583,9 +587,22 @@ Item {
                 color:              root._fg
             }
 
+            // Tap: the application menu (blocked in Field Mode, like every other
+            // route out of the fly view). Press and hold: the way out of Field
+            // Mode from inside it, with a question first. Before this the only
+            // way back was adb or a settings wipe.
             QGCMouseArea {
                 anchors.fill:   parent
                 onClicked:      mainWindow.showToolSelectDialog()
+                onPressAndHold: {
+                    var fieldMode = QGroundControl.settingsManager.appSettings.fieldModeEnabled
+                    if (fieldMode.value) {
+                        mainWindow.showMessageDialog(qsTr("Leave Field Mode?"),
+                                                     qsTr("Settings, Plan and Configure come back. Field Mode can be turned on again under Settings > Fly View."),
+                                                     Dialog.Yes | Dialog.No,
+                                                     function() { fieldMode.value = false })
+                    }
+                }
             }
         }
     }

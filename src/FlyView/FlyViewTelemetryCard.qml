@@ -94,6 +94,13 @@ Rectangle {
         return (isNaN(value) || !isFinite(value)) ? "—" : value.toFixed(digits)
     }
 
+    /// Signed to `digits`, with the sign decided after rounding: −0.04 → "+0.0".
+    function _signed(value, digits) {
+        var text = Math.abs(value).toFixed(digits)
+        var negative = value < 0 && Number(text) !== 0
+        return (negative ? "-" : "+") + text
+    }
+
     function _homeValue() {
         if (!_homeKnown) {
             return "—"
@@ -248,8 +255,9 @@ Rectangle {
 
         Cell {
             caption:    qsTr("CLIMB")
-            value:      isNaN(root._climbRate) ? "—"
-                            : (root._climbRate >= 0 ? "+" : "") + root._s(root._climbRate).toFixed(1)
+            // Sign from the rounded figure, so a −0.04 m/s hover reads "+0.0",
+            // not "-0.0" (seen on the bench).
+            value:      isNaN(root._climbRate) ? "—" : root._signed(root._s(root._climbRate), 1)
             unit:       root._sUnit
             showUnit:   !isNaN(root._climbRate)
         }
