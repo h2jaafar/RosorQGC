@@ -212,6 +212,39 @@ Item {
         return stop + qsTr(" · during Return it waits for you")
     }
 
+    // ------------------------------------------------------ battery vs home
+    //
+    /// Time to fly home against the shortest battery estimate, both from the
+    /// aircraft. Empty until both are known; flagged when the margin is thin.
+    readonly property real _timeToHomeS: (root.vehicle && root.vehicle.timeToHome)
+                                             ? Number(root.vehicle.timeToHome.rawValue) : NaN
+    readonly property real _batteryTimeS: {
+        if (!root.vehicle || !root.vehicle.batteries) {
+            return NaN
+        }
+        var best = NaN
+        for (var i = 0; i < root.vehicle.batteries.count; i++) {
+            var t = Number(root.vehicle.batteries.get(i).timeRemaining.rawValue)
+            if (!isNaN(t) && t > 0 && (isNaN(best) || t < best)) {
+                best = t
+            }
+        }
+        return best
+    }
+    readonly property bool batteryToHomeKnown: !isNaN(_timeToHomeS) && _timeToHomeS > 0 && !isNaN(_batteryTimeS)
+    readonly property bool batteryToHomeDanger: batteryToHomeKnown && _batteryTimeS < _timeToHomeS * 1.5
+
+    function _mmss(seconds) {
+        var s = Math.max(0, Math.floor(seconds))
+        var m = Math.floor(s / 60)
+        var sec = s % 60
+        return m + ":" + (sec < 10 ? "0" : "") + sec
+    }
+
+    readonly property string batteryToHomeText: !batteryToHomeKnown ? ""
+        : qsTr("Home in %1 · battery %2 left").arg(_mmss(_timeToHomeS)).arg(_mmss(_batteryTimeS))
+          + (batteryToHomeDanger ? qsTr(" · thin margin") : "")
+
     // ------------------------------------------------------------ controller
 
     property var _controller: controllerLoader.item

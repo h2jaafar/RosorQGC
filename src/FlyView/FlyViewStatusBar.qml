@@ -341,10 +341,26 @@ Item {
     }
 
     function _positionSuffix() {
-        if (!ekfHealth.known || ekfHealth.severity === 0) {
+        var suffix = ""
+        if (ekfHealth.known && ekfHealth.severity !== 0) {
+            suffix += ekfHealth.severity === 2 ? qsTr(" · position BAD") : qsTr(" · position WARN")
+        }
+        return suffix + _windSuffix()
+    }
+
+    // Wind joins the sentence only when it is worth a sentence: from 6 m/s, the
+    // point where a small multirotor's survey lines start to wander. The
+    // estimate is the autopilot's (WIND message); nothing is inferred here.
+    readonly property real _windMs: (_vehicleAvailable && _activeVehicle.wind && _activeVehicle.wind.speed)
+                                        ? Number(_activeVehicle.wind.speed.rawValue) : NaN
+
+    function _windSuffix() {
+        if (isNaN(_windMs) || _windMs < 6) {
             return ""
         }
-        return ekfHealth.severity === 2 ? qsTr(" · position BAD") : qsTr(" · position WARN")
+        var units = QGroundControl.unitsConversion
+        return qsTr(" · wind %1 %2").arg(Number(units.metersSecondToAppSettingsSpeedUnits(_windMs)).toFixed(0))
+                                    .arg(units.appSettingsSpeedUnitsString)
     }
 
     function _calmSentence() {

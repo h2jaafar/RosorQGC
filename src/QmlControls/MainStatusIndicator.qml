@@ -264,6 +264,7 @@ RowLayout {
                 QGCLabel { text: safety.fenceText;        visible: text !== "" }
                 QGCLabel { text: safety.batteryText;      visible: text !== ""; color: safety.batteryDanger ? qgcPal.colorRed : qgcPal.text }
                 QGCLabel { text: safety.obstacleStopText; visible: text !== "" }
+                QGCLabel { text: safety.batteryToHomeText; visible: text !== ""; color: safety.batteryToHomeDanger ? qgcPal.colorRed : qgcPal.text }
             }
 
             SettingsGroupLayout {
