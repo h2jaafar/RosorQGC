@@ -242,6 +242,7 @@ qt_add_qml_module(QGroundControlControlsModule
         SignalStrength.qml
         VehicleMessageBanner.qml
         VehicleMessageList.qml
+        VehicleSafetyParams.qml
 
         # src/QtLocationPlugin/QMLControl/
         OfflineMapEditor.qml

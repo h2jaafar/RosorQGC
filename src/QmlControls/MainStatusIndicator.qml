@@ -245,6 +245,27 @@ RowLayout {
                 }
             }
 
+            // What the aircraft will do on its own -- link lost, fence breach, low
+            // battery, obstacle stop -- read off its parameters. The enterprise
+            // review ranked "lost-link consequence unstated" and "return altitude
+            // vs the radar regime" among the gaps a safety reviewer asks about first.
+            SettingsGroupLayout {
+                heading:            qsTr("Safety")
+                visible:            safety.known
+
+                VehicleSafetyParams {
+                    id:      safety
+                    vehicle: _activeVehicle
+                    visible: false
+                }
+
+                QGCLabel { text: safety.returnText;       visible: text !== "" }
+                QGCLabel { text: safety.linkLostText;     visible: text !== ""; color: safety.linkLostDanger ? qgcPal.colorRed : qgcPal.text }
+                QGCLabel { text: safety.fenceText;        visible: text !== "" }
+                QGCLabel { text: safety.batteryText;      visible: text !== ""; color: safety.batteryDanger ? qgcPal.colorRed : qgcPal.text }
+                QGCLabel { text: safety.obstacleStopText; visible: text !== "" }
+            }
+
             SettingsGroupLayout {
                 //Layout.fillWidth:   true
                 heading:            qsTr("Sensor Status")

@@ -314,6 +314,13 @@ Item {
         vehicle: root._activeVehicle
     }
 
+    // The aircraft's own failsafe policy, for the one sentence that matters when
+    // the link drops: what it is doing about it.
+    VehicleSafetyParams {
+        id:      safety
+        vehicle: root._activeVehicle
+    }
+
     // ---------------------------------------------------------- the sentence
     //
     /// What the aircraft is doing, in one line, when no vehicle message is
@@ -344,6 +351,12 @@ Item {
             return qsTr("No aircraft connected")
         }
         var mode = _activeVehicle.flightMode
+        if (_commsLost) {
+            // COMMS LOST on the pill; here, what the aircraft does about it, from
+            // its own FS_GCS_ENABLE, so the operator is not left guessing.
+            return safety.linkLostShort !== "" ? qsTr("Link lost · aircraft %1").arg(safety.linkLostShort)
+                                                : qsTr("Link lost · last seen %1").arg(mode)
+        }
         if (_activeVehicle.flying || _activeVehicle.landing) {
             if (_missionCount > 0 && _activeVehicle.flightMode === "Auto") {
                 var t = _missionTimeText()
