@@ -78,6 +78,7 @@ jobs:
           src/FlyView/FlyViewActionRail.qml
           src/FlyView/GuidedActionConfirm.qml
           src/QmlControls/VehicleMessageBanner.qml
+          src/QmlControls/VehicleSafetyParams.qml
           src/QmlControls/MainStatusIndicatorOfflinePage.qml
           src/UI/MainWindow.qml
           src/UI/AppSettings/LinkSettings.qml"
