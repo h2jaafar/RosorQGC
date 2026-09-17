@@ -130,6 +130,11 @@ Item {
         if (_activeVehicle.armed) {
             return 1
         }
+        // A standing pre-arm failure is the autopilot saying no; it outranks the
+        // sensor-health guess below, which on ArduPilot is all QGC otherwise has.
+        if (_prearmReason() !== "") {
+            return 2
+        }
         if (_activeVehicle.readyToFlyAvailable) {
             return _activeVehicle.readyToFly ? 1 : 2
         }
@@ -154,6 +159,9 @@ Item {
         }
         if (_healthChecksSupported) {
             return _activeVehicle.healthAndArmingCheckReport.canArm ? qsTr("READY") : qsTr("NOT READY")
+        }
+        if (_prearmReason() !== "") {
+            return qsTr("NOT READY")
         }
         if (_activeVehicle.readyToFlyAvailable) {
             return _activeVehicle.readyToFly ? qsTr("READY") : qsTr("NOT READY")
@@ -449,6 +457,24 @@ Item {
                 font.pointSize:     ScreenTools.defaultFontPointSize
                 font.bold:          true
                 color:              statePill._fgColor
+            }
+
+            // Unread mark: the vehicle sent a warning or error since the message
+            // list was last opened. The banner shows a message for 12 s; after
+            // that this is the only trace that something happened. Cleared when
+            // the drawer opens (VehicleMessageList resets the message type).
+            Rectangle {
+                anchors.right:          parent.right
+                anchors.top:            parent.top
+                anchors.margins:        -ScreenTools.defaultFontPixelHeight * 0.12
+                width:                  ScreenTools.defaultFontPixelHeight * 0.4
+                height:                 width
+                radius:                 width / 2
+                border.color:           root._chrome
+                border.width:           1
+                color:                  (root._vehicleAvailable && root._activeVehicle.messageTypeError) ? root._danger : root._alert
+                visible:                root._vehicleAvailable && !alertBanner.hasMessage
+                                        && (root._activeVehicle.messageTypeError || root._activeVehicle.messageTypeWarning)
             }
 
             QGCMouseArea {
