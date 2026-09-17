@@ -81,7 +81,9 @@ jobs:
           src/QmlControls/VehicleSafetyParams.qml
           src/QmlControls/MainStatusIndicatorOfflinePage.qml
           src/UI/MainWindow.qml
-          src/UI/AppSettings/LinkSettings.qml"
+          src/UI/AppSettings/LinkSettings.qml
+          src/UI/AppSettings/AboutSettings.qml
+          src/UI/AppSettings/FlyViewSettings.qml"
           qmllint -I "$QT_ROOT_DIR/qml" $FLAGS $STRICT 2>&1 | tee qmllint-strict.txt
           if grep -qE 'Warning|Error' qmllint-strict.txt; then
             echo "::error::qmllint found problems in fork-owned QML (see above)"
