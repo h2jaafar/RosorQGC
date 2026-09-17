@@ -110,6 +110,12 @@ ListModel {
         iconUrl: "qrc:/InstrumentValueIcons/question.svg"
         pageVisible: function() { return true }
     }
+    ListElement {
+        name: qsTr("About")
+        url: "qrc:/qml/QGroundControl/AppSettings/AboutSettings.qml"
+        iconUrl: "qrc:/res/RosorLogo.png"
+        pageVisible: function() { return true }
+    }
 
     ListElement {
         name: "Divider"
