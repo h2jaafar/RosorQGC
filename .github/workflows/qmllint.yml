@@ -1,0 +1,99 @@
+name: QML Lint
+
+# Nothing in this fork compiles on the developers' machines, so the QML is only ever
+# executed on the handheld. This is the one static check that runs without a build:
+# qmllint over the fork-owned QML, with the categories that need QGC's own types
+# switched off (they are generated at build time and unknowable here). It catches
+# syntax errors, duplicate ids and bindings, anchors inside layouts, unreachable code
+# and unresolved ids -- the class of defect that otherwise shows up as a console
+# warning on the device, or not at all.
+
+on:
+  push:
+    branches:
+      - master
+      - 'Stable*'
+      - 'flyview*'
+    paths:
+      - 'src/**/*.qml'
+      - '.github/workflows/qmllint.yml'
+  pull_request:
+    paths:
+      - 'src/**/*.qml'
+      - '.github/workflows/qmllint.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  qmllint:
+    name: qmllint without a build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get build config
+        id: config
+        uses: ./.github/actions/build-config
+
+      - name: Install Qt (for qmllint)
+        uses: ./.github/actions/qt-install
+        with:
+          version: ${{ steps.config.outputs.qt_version }}
+          host: linux
+          arch: linux_gcc_64
+          modules: ${{ steps.config.outputs.qt_modules }}
+
+      # Pass 1: every fork-owned QML file must parse. Warnings are reported, not fatal,
+      # because the older upstream files carry ~180 of them and this job is not the
+      # place to pay that debt.
+      - name: Parse every fly view, control and UI file
+        run: |
+          set -o pipefail
+          FLAGS="--unqualified disable --unresolved-type disable --import disable"
+          FILES=$(git ls-files 'src/FlyView/*.qml' 'src/QmlControls/*.qml' 'src/UI/*.qml' 'src/UI/**/*.qml')
+          echo "$(echo "$FILES" | wc -l) files"
+          qmllint -I "$QT_ROOT_DIR/qml" $FLAGS $FILES 2>&1 | tee qmllint-all.txt
+          echo "warnings: $(grep -c 'Warning' qmllint-all.txt || true)"
+
+      # Pass 2: the files this fork wrote are held to zero warnings. Three more categories
+      # are off here because they fire only on QGC's unknown types: incompatible-type on
+      # PipView/PipState bindings, unresolved-alias on QGCCheckBox aliases, and
+      # Quick.attached-property-type on Layout.* attached to QGCColoredImage.
+      - name: Hold the fork's own files to zero warnings
+        run: |
+          set -o pipefail
+          FLAGS="--unqualified disable --unresolved-type disable --import disable --incompatible-type disable --unresolved-alias disable --Quick.attached-property-type disable"
+          STRICT="src/FlyView/FlyView.qml
+          src/FlyView/FlyViewStatusBar.qml
+          src/FlyView/FlyViewNavCard.qml
+          src/FlyView/FlyViewTelemetryCard.qml
+          src/FlyView/FlyViewActionRail.qml
+          src/FlyView/GuidedActionConfirm.qml
+          src/QmlControls/VehicleMessageBanner.qml
+          src/QmlControls/MainStatusIndicatorOfflinePage.qml
+          src/UI/MainWindow.qml
+          src/UI/AppSettings/LinkSettings.qml"
+          qmllint -I "$QT_ROOT_DIR/qml" $FLAGS $STRICT 2>&1 | tee qmllint-strict.txt
+          if grep -qE 'Warning|Error' qmllint-strict.txt; then
+            echo "::error::qmllint found problems in fork-owned QML (see above)"
+            exit 1
+          fi
+          echo "strict set clean"
+
+      - name: Upload lint output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qmllint-output
+          path: |
+            qmllint-all.txt
+            qmllint-strict.txt
+          retention-days: 14
