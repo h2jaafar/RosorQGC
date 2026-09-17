@@ -111,13 +111,17 @@ Rectangle {
         function onAvoidEnabledChanged() { root._updateInsideTrigger(); ring.requestPaint() }
     }
 
-    /// The three bands the sensing is drawn in. Red is the latched stop state;
-    /// amber is inside the release margin but not (or no longer) stopping;
-    /// green is clear. Same distances as the script, so the colours mean what
-    /// the aircraft will do.
-    readonly property color _sensingColor: root.insideTrigger ? root._danger
-                                            : (root._closestKnown && radarParams.haveTrigger
-                                               && root._closest <= radarParams.clearM) ? root._alert
+    /// The three bands the sensing is drawn in: 0 clear, 1 near (inside the
+    /// release margin but not, or no longer, stopping), 2 the latched stop
+    /// state. Same distances as the script, so the bands mean what the
+    /// aircraft will do. An int, not a colour, so every consumer compares a
+    /// number -- colour equality in QML JS is not something to build on.
+    readonly property int _sensingState: root.insideTrigger ? 2
+                                          : (root._closestKnown && radarParams.haveTrigger
+                                             && root._closest <= radarParams.clearM) ? 1
+                                          : 0
+    readonly property color _sensingColor: _sensingState === 2 ? root._danger
+                                            : _sensingState === 1 ? root._alert
                                             : root._good
 
     readonly property string _rdrText: isNaN(root._radarAlt)
@@ -318,8 +322,7 @@ Rectangle {
             var bx = width - barMargin - barWidth
             var by0 = 4, by1 = height - 4
             var bh = (by1 - by0) / 3
-            var live = root._closestKnown ? (root.insideTrigger ? 2
-                                              : (root._sensingColor === root._alert ? 1 : 0)) : -1
+            var live = root._closestKnown ? root._sensingState : -1
             var bands = [root._good, root._alert, root._danger]
             for (var b = 0; b < 3; b++) {
                 ctx.fillStyle = _rgba(bands[b], b === live ? 1.0 : 0.30)
@@ -406,11 +409,12 @@ Rectangle {
                 QGCLabel {
                     id:                 stateLabel
                     anchors.centerIn:   parent
-                    text:               root.insideTrigger ? qsTr("INSIDE TRIGGER")
-                                        : (root._sensingColor === root._alert ? qsTr("NEAR") : qsTr("CLEAR"))
+                    text:               root._sensingState === 2 ? qsTr("INSIDE TRIGGER")
+                                        : root._sensingState === 1 ? qsTr("NEAR") : qsTr("CLEAR")
                     font.pointSize:     ScreenTools.smallFontPointSize
                     font.bold:          true
-                    color:              root._sensingColor === root._alert ? "#000000" : "white"
+                    // Dark text on amber, which is too light for white.
+                    color:              root._sensingState === 1 ? "#000000" : "white"
                 }
             }
         }
