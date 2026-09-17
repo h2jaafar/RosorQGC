@@ -41,6 +41,7 @@
 #endif
 
 #include <QtCore/QApplicationStatic>
+#include <QtCore/QCoreApplication>
 #include <QtCore/QTimer>
 
 QGC_LOGGING_CATEGORY(LinkManagerLog, "Comms.LinkManager")
@@ -183,6 +184,24 @@ bool LinkManager::createConnectedLink(SharedLinkConfigurationPtr &config)
 
 void LinkManager::_communicationError(const QString &title, const QString &error)
 {
+#ifdef QGC_ENABLE_BLUETOOTH
+    // A failed auto-dial is the expected outcome while the aircraft is still off. It is
+    // logged, not shown: a popup every fifteen seconds is not a connect flow. The one
+    // failure the operator has to act on is a refused permission, shown once.
+    const LinkInterface *const link = qobject_cast<const LinkInterface*>(sender());
+    const SharedLinkConfigurationPtr config = link ? link->linkConfiguration() : nullptr;
+    if (config && _bluetoothAutoDials.contains(config.get())) {
+        if (error.contains(QStringLiteral("Permission"), Qt::CaseInsensitive)) {
+            if (!_bluetoothPermissionDenied) {
+                _bluetoothPermissionDenied = true;
+                qgcApp()->showAppMessage(tr("Bluetooth permission was refused, so this controller cannot find the aircraft by itself. Allow Bluetooth for %1 in the Android settings, then restart the app.").arg(QCoreApplication::applicationName()), title);
+            }
+            return;
+        }
+        qCDebug(LinkManagerLog) << "Bluetooth auto-connect: dial to" << config->name() << "failed:" << error;
+        return;
+    }
+#endif
     qgcApp()->showAppMessage(error, title);
 }
 
@@ -259,6 +278,11 @@ void LinkManager::_linkDisconnected()
 
     if (config) {
         config->setLink(nullptr);
+#ifdef QGC_ENABLE_BLUETOOTH
+        if (_bluetoothAutoDials.remove(config.get())) {
+            _setBluetoothAutoConnectTarget(QString());
+        }
+#endif
     }
 
     (void) disconnect(link, &LinkInterface::communicationError, this, &LinkManager::_communicationError);
@@ -430,6 +454,73 @@ void LinkManager::_addUDPAutoConnectLink()
     createConnectedLink(config);
 }
 
+#ifdef QGC_ENABLE_BLUETOOTH
+/// The connect card's promise -- "this controller finds the aircraft by itself" -- made
+/// true. The Siyi ground unit is bonded but never answers inquiry, so the only way to know
+/// it is powered on is to dial it. Every saved, non-dynamic Bluetooth link is dialled in
+/// turn, one dial in flight at a time, no oftener than _bluetoothAutoConnectRetryMSecs,
+/// and only while no vehicle is up on any link. A failed dial is torn down by the link
+/// itself (BluetoothLink emits disconnected after the socket error), which clears the
+/// configuration's link pointer and lets a later pass dial again.
+void LinkManager::_addBluetoothAutoConnectLinks()
+{
+    if (!_autoConnectSettings->autoConnectBluetooth()->rawValue().toBool() || _bluetoothPermissionDenied) {
+        _setBluetoothAutoConnectTarget(QString());
+        return;
+    }
+
+    if (MultiVehicleManager::instance()->activeVehicle()) {
+        _setBluetoothAutoConnectTarget(QString());
+        return;
+    }
+
+    QList<SharedLinkConfigurationPtr> candidates;
+    for (const SharedLinkConfigurationPtr &config : _rgLinkConfigs) {
+        if (!config || (config->type() != LinkConfiguration::TypeBluetooth) || config->isDynamic()) {
+            continue;
+        }
+        if (config->link()) {
+            // A dial, or a manual connect, is already in progress on this one; wait for it.
+            if (_bluetoothAutoDials.contains(config.get())) {
+                _setBluetoothAutoConnectTarget(config->name());
+            }
+            return;
+        }
+        candidates.append(config);
+    }
+
+    if (candidates.isEmpty()) {
+        _setBluetoothAutoConnectTarget(QString());
+        return;
+    }
+
+    if (_bluetoothAutoConnectDialTimer.isValid() && (_bluetoothAutoConnectDialTimer.elapsed() < _bluetoothAutoConnectRetryMSecs)) {
+        return;
+    }
+
+    SharedLinkConfigurationPtr config = candidates.at(_bluetoothAutoConnectNext % candidates.count());
+    _bluetoothAutoConnectNext = (_bluetoothAutoConnectNext + 1) % candidates.count();
+
+    qCDebug(LinkManagerLog) << "Bluetooth auto-connect: dialling" << config->name();
+    _bluetoothAutoConnectDialTimer.restart();
+    (void) _bluetoothAutoDials.insert(config.get());
+    if (createConnectedLink(config)) {
+        _setBluetoothAutoConnectTarget(config->name());
+    } else {
+        (void) _bluetoothAutoDials.remove(config.get());
+        _setBluetoothAutoConnectTarget(QString());
+    }
+}
+
+void LinkManager::_setBluetoothAutoConnectTarget(const QString &name)
+{
+    if (_bluetoothAutoConnectTarget != name) {
+        _bluetoothAutoConnectTarget = name;
+        emit bluetoothAutoConnectTargetChanged();
+    }
+}
+#endif
+
 void LinkManager::_addMAVLinkForwardingLink()
 {
     if (!SettingsManager::instance()->mavlinkSettings()->forwardMavlink()->rawValue().toBool()) {
@@ -533,6 +624,9 @@ void LinkManager::_updateAutoConnectLinks()
     }
 
     _addUDPAutoConnectLink();
+#ifdef QGC_ENABLE_BLUETOOTH
+    _addBluetoothAutoConnectLinks();
+#endif
     _addMAVLinkForwardingLink();
 #ifdef QGC_ZEROCONF_ENABLED
     _addZeroConfAutoConnectLink();

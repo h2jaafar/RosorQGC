@@ -30,6 +30,17 @@ DECLARE_SETTINGSFACT(AutoConnectSettings, udpTargetHostIP)
 DECLARE_SETTINGSFACT(AutoConnectSettings, udpTargetHostPort)
 DECLARE_SETTINGSFACT(AutoConnectSettings, nmeaUdpPort)
 
+DECLARE_SETTINGSFACT_NO_FUNC(AutoConnectSettings, autoConnectBluetooth)
+{
+    if (!_autoConnectBluetoothFact) {
+        _autoConnectBluetoothFact = _createSettingsFact(autoConnectBluetoothName);
+#ifndef QGC_ENABLE_BLUETOOTH
+        _autoConnectBluetoothFact->setVisible(false);
+#endif
+    }
+    return _autoConnectBluetoothFact;
+}
+
 DECLARE_SETTINGSFACT_NO_FUNC(AutoConnectSettings, autoConnectPixhawk)
 {
     if (!_autoConnectPixhawkFact) {

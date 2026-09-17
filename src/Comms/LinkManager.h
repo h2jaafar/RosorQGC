@@ -22,6 +22,9 @@ class AutoConnectSettings;
 class LogReplayLink;
 class MAVLinkProtocol;
 class QmlObjectListModel;
+#include <QtCore/QElapsedTimer>
+#include <QtCore/QSet>
+
 class QTimer;
 class SerialLink;
 class UDPConfiguration;
@@ -42,6 +45,8 @@ class LinkManager : public QObject
     Q_PROPERTY(QmlObjectListModel *linkConfigurations READ _qmlLinkConfigurations CONSTANT)
     Q_PROPERTY(QStringList linkTypeStrings READ linkTypeStrings CONSTANT)
     Q_PROPERTY(bool mavlinkSupportForwardingEnabled READ mavlinkSupportForwardingEnabled NOTIFY mavlinkSupportForwardingEnabledChanged)
+    /// Name of the saved Bluetooth link auto-connect is dialling right now, empty when idle. The connect card reads it.
+    Q_PROPERTY(QString bluetoothAutoConnectTarget READ bluetoothAutoConnectTarget NOTIFY bluetoothAutoConnectTargetChanged)
 
 public:
     explicit LinkManager(QObject *parent = nullptr);
@@ -110,6 +115,8 @@ public:
 
     static bool isBluetoothAvailable();
 
+    QString bluetoothAutoConnectTarget() const { return _bluetoothAutoConnectTarget; }
+
     static bool isLinkUSBDirect(const LinkInterface *link);
 
     static constexpr uint8_t invalidMavlinkChannel() { return std::numeric_limits<uint8_t>::max(); }
@@ -117,6 +124,7 @@ public:
 signals:
     void mavlinkSupportForwardingEnabledChanged();
     void isBluetoothAvailableChanged();
+    void bluetoothAutoConnectTargetChanged();
 
 private slots:
     void _linkDisconnected();
@@ -129,6 +137,10 @@ private:
     void _updateAutoConnectLinks();
     void _removeConfiguration(const LinkConfiguration *config);
     void _addUDPAutoConnectLink();
+#ifdef QGC_ENABLE_BLUETOOTH
+    void _addBluetoothAutoConnectLinks();
+    void _setBluetoothAutoConnectTarget(const QString &name);
+#endif
     void _addMAVLinkForwardingLink();
     void _createDynamicForwardLink(const char *linkName, const QString &hostName);
 #ifdef QGC_ZEROCONF_ENABLED
@@ -138,6 +150,15 @@ private:
     QTimer *_portListTimer = nullptr;
     QmlObjectListModel *_qmlConfigurations = nullptr;
     AutoConnectSettings *_autoConnectSettings = nullptr;
+
+    // Bluetooth auto-connect: the saved links are dialled in turn, one dial in flight at a
+    // time, paced because a dial against a powered-off ground unit takes seconds to fail.
+    QElapsedTimer _bluetoothAutoConnectDialTimer;
+    int _bluetoothAutoConnectNext = 0;
+    QSet<const LinkConfiguration*> _bluetoothAutoDials;   ///< configs whose current link is an auto-dial; their failures stay quiet
+    bool _bluetoothPermissionDenied = false;              ///< the operator refused the permission; stop dialling until restart
+    QString _bluetoothAutoConnectTarget;
+    static constexpr int _bluetoothAutoConnectRetryMSecs = 15000;
 
     bool _configUpdateSuspended = false;            ///< true: stop updating configuration list
     bool _configurationsLoaded = false;             ///< true: Link configurations have been loaded

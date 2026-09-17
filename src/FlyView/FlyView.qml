@@ -456,6 +456,17 @@ Item {
         Rectangle {
             id:                 connectCard
             anchors.centerIn:   parent
+
+            // Any saved, operator-made link (the auto-connect UDP entry is dynamic).
+            readonly property bool _hasSavedLink: {
+                var configs = QGroundControl.linkManager.linkConfigurations
+                for (var i = 0; i < configs.count; i++) {
+                    if (!configs.get(i).dynamic) {
+                        return true
+                    }
+                }
+                return false
+            }
             width:              ScreenTools.defaultFontPixelWidth * 34.7
             height:             connectColumn.height + ScreenTools.defaultFontPixelHeight * 1.8
             radius:             ScreenTools.defaultFontPixelHeight * 0.25
@@ -485,35 +496,53 @@ Item {
                     color:              flyViewPal.text
                 }
 
+                // True since LinkManager dials the saved Bluetooth links by itself
+                // (autoConnectBluetooth). The second line is the dial in progress,
+                // so a stranger can tell "looking" from "nothing to look for".
                 QGCLabel {
                     Layout.alignment:       Qt.AlignHCenter
                     Layout.fillWidth:       true
                     horizontalAlignment:    Text.AlignHCenter
                     wrapMode:               Text.WordWrap
-                    text:                   qsTr("Power on the aircraft. This controller pairs with it by itself.")
+                    text:                   connectCard._hasSavedLink
+                                                ? qsTr("Power on the aircraft. This controller finds it by itself.")
+                                                : qsTr("No aircraft link is saved on this controller yet.")
                     color:                  flyViewPal.windowTransparentText
+                }
+
+                QGCLabel {
+                    Layout.alignment:       Qt.AlignHCenter
+                    text:                   QGroundControl.linkManager.bluetoothAutoConnectTarget !== ""
+                                                ? qsTr("Looking for %1…").arg(QGroundControl.linkManager.bluetoothAutoConnectTarget)
+                                                : qsTr("Waiting for the aircraft…")
+                    font.pointSize:         ScreenTools.smallFontPointSize
+                    color:                  flyViewPal.windowTransparentText
+                    visible:                connectCard._hasSavedLink
                 }
 
                 Rectangle {
                     Layout.alignment:       Qt.AlignHCenter
                     Layout.topMargin:       ScreenTools.defaultFontPixelHeight * 0.2
-                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.4
-                    Layout.preferredWidth:  connectLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 3
+                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.6
+                    Layout.preferredWidth:  connectLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 4
                     radius:                 ScreenTools.defaultFontPixelHeight * 0.19
                     color:                  connectMouse.pressed ? flyViewPal.buttonHighlight : "#3A9BDC"
 
                     QGCLabel {
                         id:                 connectLabel
                         anchors.centerIn:   parent
-                        text:               qsTr("Connect manually")
+                        text:               connectCard._hasSavedLink ? qsTr("Connect manually") : qsTr("Set up the link")
                         font.bold:          true
                         color:              "white"
                     }
 
+                    // Straight to Comm Links, the page with the Connect button, not
+                    // to the application menu. showSettingsTool matches the page by
+                    // its title, the same way MainStatusIndicatorOfflinePage does.
                     QGCMouseArea {
                         id:             connectMouse
                         anchors.fill:   parent
-                        onClicked:      mainWindow.showToolSelectDialog()
+                        onClicked:      mainWindow.showSettingsTool(qsTr("Comm Links"))
                     }
                 }
             }

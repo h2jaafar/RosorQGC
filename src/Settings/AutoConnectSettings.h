@@ -17,6 +17,7 @@ public:
     DEFINE_SETTING_NAME_GROUP()
 
     DEFINE_SETTINGFACT(autoConnectUDP)
+    DEFINE_SETTINGFACT(autoConnectBluetooth)
     DEFINE_SETTINGFACT(autoConnectPixhawk)
     DEFINE_SETTINGFACT(autoConnectSiKRadio)
     DEFINE_SETTINGFACT(autoConnectRTKGPS)

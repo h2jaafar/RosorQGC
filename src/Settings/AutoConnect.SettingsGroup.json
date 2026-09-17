@@ -11,6 +11,13 @@
     "default":     true
 },
 {
+    "name":             "autoConnectBluetooth",
+    "shortDesc": "Automatically connect to the saved Bluetooth links",
+    "longDesc":  "If this option is enabled the saved Bluetooth links are dialled every few seconds until one answers. This is how the handheld finds the aircraft by itself.",
+    "type":             "bool",
+    "default":     true
+},
+{
     "name":             "autoConnectPixhawk",
     "shortDesc": "Automatically connect to a Pixhawk board",
     "longDesc":  "If this option is enabled GroundControl will automatically connect to a Pixhawk board which is connected via USB.",

@@ -25,9 +25,10 @@ SettingsPage {
                 _autoConnectSettings.autoConnectUDP,
                 _autoConnectSettings.autoConnectZeroConf,
                 _autoConnectSettings.autoConnectRTKGPS,
+                _autoConnectSettings.autoConnectBluetooth,
             ]
 
-            property var names: [ qsTr("Pixhawk"), qsTr("SiK Radio"), qsTr("LibrePilot"), qsTr("UDP"), qsTr("Zero-Conf"), qsTr("RTK") ]
+            property var names: [ qsTr("Pixhawk"), qsTr("SiK Radio"), qsTr("LibrePilot"), qsTr("UDP"), qsTr("Zero-Conf"), qsTr("RTK"), qsTr("Bluetooth (saved links)") ]
 
             FactCheckBoxSlider {
                 Layout.fillWidth:   true
