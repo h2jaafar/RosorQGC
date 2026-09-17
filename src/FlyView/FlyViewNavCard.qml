@@ -58,6 +58,17 @@ Rectangle {
                                    && vehicle.vehicleLinkManager.communicationLost
     opacity: _stale ? 0.45 : 1.0
 
+    // Units follow the operator's settings (General > Units). Horizontal for
+    // distances over the ground, vertical for heights, speed for rates. The
+    // strings are what those settings call the unit.
+    readonly property var    _units: QGroundControl.unitsConversion
+    readonly property string _hUnit: _units.appSettingsHorizontalDistanceUnitsString
+    readonly property string _vUnit: _units.appSettingsVerticalDistanceUnitsString
+    readonly property string _sUnit: _units.appSettingsSpeedUnitsString
+    function _h(metres)        { return Number(_units.metersToAppSettingsHorizontalDistanceUnits(metres)) }
+    function _v(metres)        { return Number(_units.metersToAppSettingsVerticalDistanceUnits(metres)) }
+    function _s(metresPerSec)  { return Number(_units.metersSecondToAppSettingsSpeedUnits(metresPerSec)) }
+
     // --------------------------------------------------------------- radar
 
     readonly property var _named: (_vehicleAvailable && vehicle.namedValueFloats)
@@ -133,7 +144,7 @@ Rectangle {
 
     readonly property string _rdrText: isNaN(root._radarAlt)
                                         ? qsTr("RDR —")
-                                        : qsTr("RDR %1 m").arg(root._radarAlt.toFixed(1))
+                                        : qsTr("RDR %1 %2").arg(root._v(root._radarAlt).toFixed(1)).arg(root._vUnit)
 
     readonly property string _hzText: isNaN(root._obstacleHz)
                                         ? qsTr("— Hz")
@@ -146,7 +157,7 @@ Rectangle {
         if (!radarParams.haveTrigger) {
             return ""
         }
-        return qsTr("trigger %1 m").arg(radarParams.fwdTrigM.toFixed(0))
+        return qsTr("trigger %1 %2").arg(root._h(radarParams.fwdTrigM).toFixed(0)).arg(root._hUnit)
     }
 
     // ---------------------------------------------------------- navigation
@@ -388,7 +399,7 @@ Rectangle {
 
             QGCLabel {
                 Layout.alignment:   Qt.AlignBaseline
-                text:               root._closestKnown ? root._closest.toFixed(1) : "—"
+                text:               root._closestKnown ? root._h(root._closest).toFixed(1) : "—"
                 font.pointSize:     ScreenTools.defaultFontPointSize * 1.35
                 font.bold:          true
                 color:              root.insideTrigger ? root._danger : root._fg
@@ -396,7 +407,7 @@ Rectangle {
 
             QGCLabel {
                 Layout.alignment:   Qt.AlignBaseline
-                text:               qsTr("m")
+                text:               root._hUnit
                 font.pointSize:     ScreenTools.defaultFontPointSize
                 color:              root._fgDim
                 visible:            root._closestKnown

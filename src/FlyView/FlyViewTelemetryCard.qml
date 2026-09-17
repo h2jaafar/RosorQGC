@@ -40,6 +40,17 @@ Rectangle {
                                    && vehicle.vehicleLinkManager.communicationLost
     opacity: _stale ? 0.45 : 1.0
 
+    // Units follow the operator's settings (General > Units). Horizontal for
+    // distances over the ground, vertical for heights, speed for rates. The
+    // strings are what those settings call the unit.
+    readonly property var    _units: QGroundControl.unitsConversion
+    readonly property string _hUnit: _units.appSettingsHorizontalDistanceUnitsString
+    readonly property string _vUnit: _units.appSettingsVerticalDistanceUnitsString
+    readonly property string _sUnit: _units.appSettingsSpeedUnitsString
+    function _h(metres)        { return Number(_units.metersToAppSettingsHorizontalDistanceUnits(metres)) }
+    function _v(metres)        { return Number(_units.metersToAppSettingsVerticalDistanceUnits(metres)) }
+    function _s(metresPerSec)  { return Number(_units.metersSecondToAppSettingsSpeedUnits(metresPerSec)) }
+
     readonly property real _groundSpeed: (_vehicleAvailable && vehicle.groundSpeed) ? vehicle.groundSpeed.rawValue : NaN
     readonly property real _climbRate:   (_vehicleAvailable && vehicle.climbRate)   ? vehicle.climbRate.rawValue   : NaN
 
@@ -71,7 +82,13 @@ Rectangle {
     readonly property real _homeRelativeBearing: _homeBearingKnown
                                                  ? (((vehicle.headingToHome.rawValue - vehicle.heading.rawValue) % 360) + 360) % 360
                                                  : 0
-    readonly property bool _homeKm: _homeKnown && vehicle.distanceToHome.rawValue >= 1000
+    // Long distances step up a unit: km past 1000 m, miles past 5280 ft. Anything
+    // else stays in the horizontal unit as set.
+    readonly property bool _homeMetric: _hUnit === "m"
+    readonly property bool _homeFeet:   _hUnit === "ft"
+    readonly property bool _homeLong:   _homeKnown && ((_homeMetric && _h(vehicle.distanceToHome.rawValue) >= 1000)
+                                                        || (_homeFeet && _h(vehicle.distanceToHome.rawValue) >= 5280))
+    readonly property string _homeUnit: _homeLong ? (_homeMetric ? qsTr("km") : qsTr("mi")) : _hUnit
 
     function _fmt(value, digits) {
         return (isNaN(value) || !isFinite(value)) ? "—" : value.toFixed(digits)
@@ -81,8 +98,11 @@ Rectangle {
         if (!_homeKnown) {
             return "—"
         }
-        var d = vehicle.distanceToHome.rawValue
-        return _homeKm ? (d / 1000).toFixed(1) : d.toFixed(0)
+        var d = _h(vehicle.distanceToHome.rawValue)
+        if (_homeLong) {
+            return (d / (_homeMetric ? 1000 : 5280)).toFixed(1)
+        }
+        return d.toFixed(0)
     }
 
     /// One cell: a small caption over a number with its unit on the baseline.
@@ -160,8 +180,8 @@ Rectangle {
 
         Cell {
             caption:    qsTr("HEIGHT")
-            value:      root._fmt(root._agl, 1)
-            unit:       qsTr("m")
+            value:      root._fmt(root._v(root._agl), 1)
+            unit:       root._vUnit
             showUnit:   !isNaN(root._agl)
         }
 
@@ -195,7 +215,7 @@ Rectangle {
 
                     QGCLabel {
                         Layout.alignment:   Qt.AlignBaseline
-                        text:               root._homeKm ? qsTr("km") : qsTr("m")
+                        text:               root._homeUnit
                         font.pointSize:     ScreenTools.smallFontPointSize
                         color:              root._fgDim
                         visible:            root._homeKnown
@@ -221,16 +241,16 @@ Rectangle {
 
         Cell {
             caption:    qsTr("SPEED")
-            value:      root._fmt(root._groundSpeed, 1)
-            unit:       qsTr("m/s")
+            value:      root._fmt(root._s(root._groundSpeed), 1)
+            unit:       root._sUnit
             showUnit:   !isNaN(root._groundSpeed)
         }
 
         Cell {
             caption:    qsTr("CLIMB")
             value:      isNaN(root._climbRate) ? "—"
-                            : (root._climbRate >= 0 ? "+" : "") + root._climbRate.toFixed(1)
-            unit:       qsTr("m/s")
+                            : (root._climbRate >= 0 ? "+" : "") + root._s(root._climbRate).toFixed(1)
+            unit:       root._sUnit
             showUnit:   !isNaN(root._climbRate)
         }
     }

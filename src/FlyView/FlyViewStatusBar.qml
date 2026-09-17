@@ -219,6 +219,38 @@ Item {
         return qsTr("%1 min").arg(Math.round(_battery.timeRemaining.rawValue / 60))
     }
 
+    // ------------------------------------------------------------------ link
+    //
+    /// ArduPilot's RC RSSI as a percentage; 255 means unknown and the cell hides.
+    /// Amber under 40, red under 15: the thresholds the retired critical bar used.
+    readonly property bool _rcKnown: _vehicleAvailable && _activeVehicle.supportsRadio
+                                     && _activeVehicle.rcRSSI > 0 && _activeVehicle.rcRSSI <= 100
+    readonly property int  _rcSeverity: !_rcKnown ? 0
+                                        : (_activeVehicle.rcRSSI <= 15 ? 2 : (_activeVehicle.rcRSSI <= 40 ? 1 : 0))
+
+    // ----------------------------------------------------------- flight time
+    //
+    /// Seconds since arming, kept by Vehicle and left standing after landing
+    /// until the next arm, so the number can be written down.
+    readonly property var _flightTimeFact: _vehicleAvailable ? _activeVehicle.getFact("flightTime") : null
+
+    function _flightTimeText() {
+        if (!_flightTimeFact) {
+            return ""
+        }
+        var s = _flightTimeFact.rawValue
+        if (s === undefined || isNaN(s) || s <= 0) {
+            return ""
+        }
+        s = Math.floor(s)
+        var h = Math.floor(s / 3600)
+        var m = Math.floor((s % 3600) / 60)
+        var sec = s % 60
+        var mm = (m < 10 ? "0" : "") + m
+        var ss = (sec < 10 ? "0" : "") + sec
+        return h > 0 ? qsTr("%1:%2:%3").arg(h).arg(mm).arg(ss) : qsTr("%1:%2").arg(mm).arg(ss)
+    }
+
     // ------------------------------------------------------------------ GNSS
 
     function _gpsAvailable() {
@@ -435,6 +467,41 @@ Item {
         anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
         anchors.verticalCenter: parent.verticalCenter
         spacing:                ScreenTools.defaultFontPixelWidth * 1.6
+
+        // Flight time, while it means something: from arming until the next arm.
+        QGCLabel {
+            anchors.verticalCenter: parent.verticalCenter
+            text:                   root._flightTimeText()
+            font.pointSize:         ScreenTools.defaultFontPointSize * 1.1
+            font.bold:              true
+            color:                  root._fg
+            visible:                text !== ""
+        }
+
+        // Radio link. DJI's bar leads with the two link bars; this fleet reports
+        // one number, and it is hidden until the aircraft sends it.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing:                ScreenTools.defaultFontPixelWidth * 0.4
+            visible:                root._rcKnown
+
+            QGCLabel {
+                anchors.baseline:   rcValue.baseline
+                text:               qsTr("RC")
+                font.pointSize:     ScreenTools.smallFontPointSize
+                color:              root._fgDim
+            }
+
+            QGCLabel {
+                id:                     rcValue
+                anchors.verticalCenter: parent.verticalCenter
+                text:                   qsTr("%1%").arg(root._rcKnown ? root._activeVehicle.rcRSSI : 0)
+                font.pointSize:         ScreenTools.defaultFontPointSize * 1.1
+                font.bold:              true
+                color:                  root._rcSeverity === 2 ? root._danger
+                                        : root._rcSeverity === 1 ? root._alert : root._fg
+            }
+        }
 
         // Battery: percent leads, minutes beside it when the autopilot
         // estimates one. Volts only when there is no percent.
