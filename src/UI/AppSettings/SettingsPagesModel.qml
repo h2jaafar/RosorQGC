@@ -40,7 +40,10 @@ ListModel {
         name: qsTr("ADSB Server")
         url: "qrc:/qml/QGroundControl/AppSettings/ADSBServerSettings.qml"
         iconUrl: "qrc:/InstrumentValueIcons/airplane.svg"
-        pageVisible: function() { return true }
+        // Engineer pages (ADSB Server, Remote ID, Telemetry) show in Advanced mode
+        // only. An operator sees General, Fly View, Plan View, Video, Comm Links,
+        // Maps, NTRIP/RTK, Help and About.
+        pageVisible: function() { return QGroundControl.corePlugin.showAdvancedUI }
     }
 
     ListElement {
@@ -90,14 +93,14 @@ ListModel {
         name: qsTr("Remote ID")
         url: "qrc:/qml/QGroundControl/AppSettings/RemoteIDSettings.qml"
         iconUrl: "qrc:/qmlimages/RidIconManNoID.svg"
-        pageVisible: function() { return true }
+        pageVisible: function() { return QGroundControl.corePlugin.showAdvancedUI }
     }
 
     ListElement {
         name: qsTr("Telemetry")
         url: "qrc:/qml/QGroundControl/AppSettings/TelemetrySettings.qml"
         iconUrl: "qrc:/InstrumentValueIcons/drone.svg"
-        pageVisible: function() { return true }
+        pageVisible: function() { return QGroundControl.corePlugin.showAdvancedUI }
     }
 
     ListElement {
