@@ -215,7 +215,7 @@ private:
 
     bool _deleteAfterUpload = false;
     bool _enableAutoStart = false;
-    bool _enableAutoUpload = true;
+    bool _enableAutoUpload = false;   ///< Off by default here: flight logs leave the aircraft only when someone asks.
     bool _loggingDisabled = false;
     bool _loggingDenied = false;
     bool _logRunning = false;

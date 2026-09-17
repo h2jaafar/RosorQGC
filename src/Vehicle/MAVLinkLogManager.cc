@@ -303,7 +303,8 @@ MAVLinkLogManager::MAVLinkLogManager(Vehicle *vehicle, QObject *parent)
     setDeleteAfterUpload(settings.value(kEnableDeletetKey, false).toBool());
     setWindSpeed(settings.value(kWindSpeedKey, -1).toInt());
     setRating(settings.value(kRateKey, "notset").toString());
-    setPublicLog(settings.value(kPublicLogKey, true).toBool());
+    // Private unless the operator says otherwise; upstream defaulted to public.
+    setPublicLog(settings.value(kPublicLogKey, false).toBool());
 
     settings.endGroup();
 

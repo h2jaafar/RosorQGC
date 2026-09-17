@@ -13,9 +13,9 @@
 {
     "name":             "telemetrySaveNotArmed",
     "shortDesc": "Save telemetry log even if vehicle was not armed",
-    "longDesc":  "If this option is enabled a telemtry log will be saved even if vehicle was never armed.",
+    "longDesc":  "If this option is enabled a telemetry log will be saved even if vehicle was never armed. On by default in this build: the sessions where arming failed are the ones worth reading afterwards.",
     "type":             "bool",
-    "default":     false
+    "default":     true
 },
 {
     "name":                 "apmStartMavlinkStreams",
